@@ -1,0 +1,117 @@
+{
+  "error": null,
+  "data": [
+    {
+      "CircuitId": 1,
+      "Name": "Columbia River (Y) ",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 2,
+      "Name": "California (S)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 3,
+      "Name": "Wilderness (W)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 4,
+      "Name": "Montana (M)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 5,
+      "Name": "Mountain States (R) ",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 6,
+      "Name": "Turquoise (H)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 7,
+      "Name": "Texas (L)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 8,
+      "Name": "Prairie (P)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 9,
+      "Name": "Great Lakes (A)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 10,
+      "Name": "Southeastern (K)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 11,
+      "Name": "First Frontier (U)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 12,
+      "Name": "Maple Leaf (F)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 13,
+      "Name": "Badlands (X)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 14,
+      "Name": "N/A",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 15,
+      "Name": "Mexico (G)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    },
+    {
+      "CircuitId": 16,
+      "Name": "Brazil (B)",
+      "CreatedOn": "2020-08-20T19:09:43.3",
+      "ModifiedOn": "2026-05-13T05:06:42.597",
+      "IsDeleted": false
+    }
+  ]
+}

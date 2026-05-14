@@ -1,0 +1,96 @@
+{
+  "error": null,
+  "data": [
+    {
+      "EventTypeId": 12,
+      "EventAbbrev": "AA",
+      "EventName": "All-Around",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": false
+    },
+    {
+      "EventTypeId": 1,
+      "EventAbbrev": "BB",
+      "EventName": "Bareback Riding",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 2,
+      "EventAbbrev": "SB",
+      "EventName": "Saddle Bronc Riding",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 3,
+      "EventAbbrev": "BR",
+      "EventName": "Bull Riding",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 4,
+      "EventAbbrev": "SR",
+      "EventName": "Steer Roping",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 5,
+      "EventAbbrev": "TD",
+      "EventName": "Tie-down Roping",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 6,
+      "EventAbbrev": "TR",
+      "EventName": "Team Roping",
+      "IsStandingsEvent": false,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 7,
+      "EventAbbrev": "SW",
+      "EventName": "Steer Wrestling",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 8,
+      "EventAbbrev": "GB",
+      "EventName": "Barrel Racing",
+      "IsStandingsEvent": false,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 9,
+      "EventAbbrev": "XB",
+      "EventName": "Xtreme Bulls",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": true
+    },
+    {
+      "EventTypeId": 10,
+      "EventAbbrev": "TRHD",
+      "EventName": "Team Roping (Headers)",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": false
+    },
+    {
+      "EventTypeId": 11,
+      "EventAbbrev": "TRHL",
+      "EventName": "Team Roping (Heelers)",
+      "IsStandingsEvent": true,
+      "IsResultsEvent": false
+    },
+    {
+      "EventTypeId": 13,
+      "EventAbbrev": "LB",
+      "EventName": "Breakaway Roping",
+      "IsStandingsEvent": false,
+      "IsResultsEvent": true
+    }
+  ]
+}

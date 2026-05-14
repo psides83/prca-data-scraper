@@ -1,0 +1,7 @@
+circuits_url: https://d1kfpvgfupbmyo.cloudfront.net/services/pro_rodeo.ashx/circuits
+
+event_types_url: https://d1kfpvgfupbmyo.cloudfront.net/services/pro_rodeo.ashx/eventtypes
+
+tours_url: https://d1kfpvgfupbmyo.cloudfront.net/services/pro_rodeo.ashx/tours
+
+standings_url: https://d1kfpvgfupbmyo.cloudfront.net/services/pro_rodeo.ashx/standings?year=2026&type=world&id=&event=AA

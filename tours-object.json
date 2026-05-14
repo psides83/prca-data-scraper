@@ -1,0 +1,41 @@
+{
+  "error": null,
+  "data": [
+    {
+      "TourId": 4,
+      "Name": "Xtreme Bulls",
+      "Description": null,
+      "CreatedOn": "2020-08-20T19:09:42.173",
+      "ModifiedOn": "2026-05-13T05:58:08.747",
+      "IsActive": true,
+      "IsDeleted": false
+    },
+    {
+      "TourId": 15,
+      "Name": "XBRONCS",
+      "Description": null,
+      "CreatedOn": "2020-08-20T19:09:42.173",
+      "ModifiedOn": "2026-05-13T05:58:08.747",
+      "IsActive": true,
+      "IsDeleted": false
+    },
+    {
+      "TourId": 16,
+      "Name": "Legacy Steer Roping",
+      "Description": null,
+      "CreatedOn": "2020-08-20T19:09:42.173",
+      "ModifiedOn": "2026-05-13T05:58:08.747",
+      "IsActive": true,
+      "IsDeleted": false
+    },
+    {
+      "TourId": 17,
+      "Name": "Playoff Series",
+      "Description": null,
+      "CreatedOn": "2021-11-19T15:34:51.35",
+      "ModifiedOn": "2026-05-13T05:58:08.747",
+      "IsActive": true,
+      "IsDeleted": false
+    }
+  ]
+}

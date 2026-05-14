@@ -1,0 +1,17 @@
+{
+  "name": "prca-data-scraper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:init": "node src/init-db.js",
+    "standings:sync": "node src/sync-standings.js",
+    "standings:backfill": "node src/backfill-standings.js",
+    "standings:daily": "node src/daily-standings.js",
+    "standings:retry-failed": "node src/retry-failed-standings.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.11.5"
+  }
+}
