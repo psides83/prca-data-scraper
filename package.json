@@ -8,7 +8,8 @@
     "standings:sync": "node src/sync-standings.js",
     "standings:backfill": "node src/backfill-standings.js",
     "standings:daily": "node src/daily-standings.js",
-    "standings:retry-failed": "node src/retry-failed-standings.js"
+    "standings:retry-failed": "node src/retry-failed-standings.js",
+    "contestants:cleanup-photo-urls": "node src/cleanup-contestant-photo-urls.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

@@ -9,6 +9,7 @@ Ingest standings data from the ProRodeo API into Neon/Postgres with normalized t
 - `npm run standings:backfill`: full historical backfill
 - `npm run standings:daily`: current season full sync for daily scheduling
 - `npm run standings:retry-failed`: retry failed standings requests only
+- `npm run contestants:cleanup-photo-urls`: normalize existing contestant photo URLs
 
 ## GitHub Actions
 
@@ -69,7 +70,7 @@ The API returns repeated contestant and standing fields in every standings row. 
 - `prca_event_types`: event lookup from `/eventtypes`, keyed by `event_type_id` with unique `event_abbrev`, plus `is_standings_event` and `is_results_event` scrape flags.
 - `prca_circuits`: circuit lookup from `/circuits`, keyed by `circuit_id`.
 - `prca_tours`: tour lookup from `/tours`, keyed by `tour_id`.
-- `prca_contestants`: one row per `ContestantId`, storing name, nickname, hometown, and normalized photo URL.
+- `prca_contestants`: one row per `ContestantId`, storing name, nickname, hometown, and normalized relative photo path.
 - `prca_standings`: one row per contestant/ranking context, keyed by season, type, event, contestant, tour, and circuit.
 - `prca_scrape_runs`: one row per script execution, such as a full backfill or daily sync.
 - `prca_scrape_requests`: one row per standings API request.
@@ -105,7 +106,8 @@ If the API returns tied places within the same standings response, the contestan
 - Standings scrapes only target events where `is_standings_event` is true.
 - Future results scrapes should only target events where `is_results_event` is true.
 - Standing types are lowercased.
-- Relative photo paths such as `/images/...` become absolute URLs using `PRCA_MEDIA_BASE`.
+- ProRodeo photo URLs are stored as relative paths like `/images/...`.
+- Existing absolute ProRodeo photo URLs can be cleaned with `npm run contestants:cleanup-photo-urls`.
 - Circuit codes are extracted from names like `Texas (L)` into `prca_circuits.code`.
 - Deleted circuits and inactive/deleted tours are stored in lookup tables but skipped for backfill/daily target generation.
 

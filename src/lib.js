@@ -31,12 +31,21 @@ export function normalizeBoolean(value, fallback = false) {
   return fallback;
 }
 
-export function normalizePhotoUrl(url, mediaBase) {
+export function normalizePhotoUrl(url) {
   const cleaned = cleanText(url);
   if (!cleaned) return null;
-  if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) return cleaned;
-  if (cleaned.startsWith("/")) return `${mediaBase}${cleaned}`;
-  return `${mediaBase}/${cleaned}`;
+
+  const imagePathIndex = cleaned.indexOf("/images/");
+  if (imagePathIndex >= 0) return cleaned.slice(imagePathIndex);
+
+  try {
+    const parsed = new URL(cleaned);
+    const parsedImagePathIndex = parsed.pathname.indexOf("/images/");
+    if (parsedImagePathIndex >= 0) return `${parsed.pathname.slice(parsedImagePathIndex)}${parsed.search}`;
+    return cleaned;
+  } catch {
+    return cleaned.startsWith("images/") ? `/${cleaned}` : cleaned;
+  }
 }
 
 export function extractCircuitCode(name) {
