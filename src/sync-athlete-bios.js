@@ -36,6 +36,19 @@ function printBioProgress({ index, total, contestantId, successCount, failureCou
   );
 }
 
+async function withClient(pool, fn) {
+  const client = await pool.connect();
+  client.on("error", (err) => {
+    console.error(`[db] client connection error: ${err.message || err}`);
+  });
+
+  try {
+    return await fn(client);
+  } finally {
+    client.release();
+  }
+}
+
 async function loadTargets(client, { limit, force, scope, currentYear, resyncHours }) {
   const params = [];
   const targetQueries = [];
@@ -175,14 +188,16 @@ async function upsertAthleteDetails(client, bio) {
   };
 }
 
-async function syncAthleteBio(client, { apiBase, scrapeRunId, contestantId }) {
+async function syncAthleteBio(pool, { apiBase, scrapeRunId, contestantId }) {
   const url = buildAthleteUrl(apiBase, contestantId);
   const started = Date.now();
-  const requestId = await createScrapeRequest(client, {
-    scrapeRunId,
-    sourceUrl: url,
-    metadata: { scrapeType: "athlete_bio", contestantId },
-  });
+  const requestId = await withClient(pool, (client) =>
+    createScrapeRequest(client, {
+      scrapeRunId,
+      sourceUrl: url,
+      metadata: { scrapeType: "athlete_bio", contestantId },
+    })
+  );
 
   try {
     const { data: bio, httpStatus } = await fetchJsonWithMeta(url);
@@ -191,37 +206,47 @@ async function syncAthleteBio(client, { apiBase, scrapeRunId, contestantId }) {
     }
 
     let loaded;
-    await client.query("BEGIN");
-    try {
-      loaded = await upsertAthleteDetails(client, bio);
-      await client.query("COMMIT");
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    }
-
-    await finishScrapeRequest(client, {
-      requestId,
-      durationMs: Date.now() - started,
-      status: "success",
-      httpStatus,
-      rowsReceived: 1,
-      rowsLoaded: loaded.totalRows,
+    await withClient(pool, async (client) => {
+      await client.query("BEGIN");
+      try {
+        loaded = await upsertAthleteDetails(client, bio);
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      }
     });
-    await markBioQueueProcessed(client, contestantId);
+
+    await withClient(pool, async (client) => {
+      await finishScrapeRequest(client, {
+        requestId,
+        durationMs: Date.now() - started,
+        status: "success",
+        httpStatus,
+        rowsReceived: 1,
+        rowsLoaded: loaded.totalRows,
+      });
+      await markBioQueueProcessed(client, contestantId);
+    });
 
     return { requestId, rowsReceived: 1, rowsLoaded: loaded.totalRows, loaded };
   } catch (err) {
-    await markAthleteBioFailed(client, contestantId, err);
-    await markBioQueueFailed(client, contestantId, err);
-    await finishScrapeRequest(client, {
-      requestId,
-      durationMs: Date.now() - started,
-      status: "failed",
-      rowsReceived: 0,
-      rowsLoaded: 0,
-      errorMessage: err.message || err,
-    });
+    try {
+      await withClient(pool, async (client) => {
+        await markAthleteBioFailed(client, contestantId, err);
+        await markBioQueueFailed(client, contestantId, err);
+        await finishScrapeRequest(client, {
+          requestId,
+          durationMs: Date.now() - started,
+          status: "failed",
+          rowsReceived: 0,
+          rowsLoaded: 0,
+          errorMessage: err.message || err,
+        });
+      });
+    } catch (markErr) {
+      console.error(`[athlete-bios] failed to record failure for contestant=${contestantId}: ${markErr.message || markErr}`);
+    }
     throw err;
   }
 }
@@ -236,7 +261,9 @@ async function main() {
   const delayMs = normalizeOptionalInt(process.env.ATHLETE_BIO_DELAY_MS) ?? 700;
   const jitterMs = normalizeOptionalInt(process.env.ATHLETE_BIO_JITTER_MS) ?? 400;
   const pool = createPool();
-  const client = await pool.connect();
+  pool.on("error", (err) => {
+    console.error(`[db] idle pool connection error: ${err.message || err}`);
+  });
   const startedAt = Date.now();
   let runId;
   let successCount = 0;
@@ -245,12 +272,14 @@ async function main() {
   let rowsLoaded = 0;
 
   try {
-    const targets = await loadTargets(client, { limit, force, scope, currentYear, resyncHours });
-    runId = await createScrapeRun(client, {
-      runType: "athlete_bio_sync",
-      targetCount: targets.length,
-      metadata: { apiBase, limit, force, scope, currentYear, resyncHours, delayMs, jitterMs },
-    });
+    const targets = await withClient(pool, (client) => loadTargets(client, { limit, force, scope, currentYear, resyncHours }));
+    runId = await withClient(pool, (client) =>
+      createScrapeRun(client, {
+        runType: "athlete_bio_sync",
+        targetCount: targets.length,
+        metadata: { apiBase, limit, force, scope, currentYear, resyncHours, delayMs, jitterMs },
+      })
+    );
 
     console.log(`Athlete bio targets: ${targets.length}`);
     for (let i = 0; i < targets.length; i += 1) {
@@ -258,7 +287,7 @@ async function main() {
       console.log(`[athlete-bios] starting ${i + 1}/${targets.length}: contestant=${contestantId}`);
 
       try {
-        const result = await syncAthleteBio(client, { apiBase, scrapeRunId: runId, contestantId });
+        const result = await syncAthleteBio(pool, { apiBase, scrapeRunId: runId, contestantId });
         successCount += 1;
         rowsReceived += result.rowsReceived;
         rowsLoaded += result.rowsLoaded;
@@ -272,32 +301,35 @@ async function main() {
       if (i < targets.length - 1) await sleep(withJitter(delayMs, jitterMs));
     }
 
-    await finishScrapeRun(client, {
-      runId,
-      status: failureCount > 0 ? "completed_with_errors" : "success",
-      successCount,
-      failureCount,
-      rowsReceived,
-      rowsLoaded,
-      message: `Athlete bio sync completed. success=${successCount} failed=${failureCount}`,
-    });
+    await withClient(pool, (client) =>
+      finishScrapeRun(client, {
+        runId,
+        status: failureCount > 0 ? "completed_with_errors" : "success",
+        successCount,
+        failureCount,
+        rowsReceived,
+        rowsLoaded,
+        message: `Athlete bio sync completed. success=${successCount} failed=${failureCount}`,
+      })
+    );
 
     console.log(`Athlete bio sync completed. success=${successCount} failed=${failureCount}`);
   } catch (err) {
     if (runId) {
-      await finishScrapeRun(client, {
-        runId,
-        status: "failed",
-        successCount,
-        failureCount: failureCount || 1,
-        rowsReceived,
-        rowsLoaded,
-        message: err.message || String(err),
-      });
+      await withClient(pool, (client) =>
+        finishScrapeRun(client, {
+          runId,
+          status: "failed",
+          successCount,
+          failureCount: failureCount || 1,
+          rowsReceived,
+          rowsLoaded,
+          message: err.message || String(err),
+        })
+      );
     }
     throw err;
   } finally {
-    client.release();
     await pool.end();
   }
 }
