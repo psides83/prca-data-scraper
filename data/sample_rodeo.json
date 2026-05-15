@@ -1,0 +1,109 @@
+{
+  "error": null,
+  "data": {
+    "Events": [
+      {
+        "RodeoId": 18705,
+        "EventType": "SB",
+        "EventName": "Saddle Bronc Riding                                                                                 "
+      }
+    ],
+    "Tours": [],
+    "Circuit": {
+      "CircuitId": 4,
+      "Name": "Montana (M)"
+    },
+    "Winners": [
+      {
+        "RodeoId": 15716,
+        "Contestant": {
+          "ContestantId": 108143,
+          "FirstName": "Thayne",
+          "LastName": "Elshere",
+          "NickName": "",
+          "Hometown": "Sturgis, SD",
+          "PhotoUrl": null,
+          "Featured": false,
+          "BirthDate": "2004-11-09T00:00:00",
+          "Age": 21,
+          "TotalEarnings": 0,
+          "YearEarnings": 0,
+          "WorldTitles": null,
+          "NFRQualifications": null,
+          "DateJoined": "2025-09-16T00:00:00",
+          "EventTypes": null,
+          "BiographyText": null,
+          "VideoHighlights": null,
+          "IsActive": true,
+          "ShowInactiveBioOverride": false,
+          "HideActiveBioOverride": false
+        },
+        "TeamId": 0,
+        "EventType": "SB",
+        "StartDate": "2025-05-16T00:00:00",
+        "Score": 80,
+        "Time": 0,
+        "Payoff": 954.1
+      },
+      {
+        "RodeoId": 15716,
+        "Contestant": {
+          "ContestantId": 110029,
+          "FirstName": "Logan",
+          "LastName": "Nunn",
+          "NickName": "",
+          "Hometown": "Lovell, WY",
+          "PhotoUrl": null,
+          "Featured": false,
+          "BirthDate": "2000-01-26T00:00:00",
+          "Age": 26,
+          "TotalEarnings": 0,
+          "YearEarnings": 0,
+          "WorldTitles": null,
+          "NFRQualifications": null,
+          "DateJoined": "2025-09-22T00:00:00",
+          "EventTypes": null,
+          "BiographyText": null,
+          "VideoHighlights": null,
+          "IsActive": true,
+          "ShowInactiveBioOverride": false,
+          "HideActiveBioOverride": false
+        },
+        "TeamId": 0,
+        "EventType": "SB",
+        "StartDate": "2025-05-16T00:00:00",
+        "Score": 80,
+        "Time": 0,
+        "Payoff": 954.1
+      }
+    ],
+    "Performances": [
+      {
+        "Name": "1st Performance Friday Matinee",
+        "StartDate": "2026-05-15T17:00:00"
+      }
+    ],
+    "RodeoId": 18705,
+    "RodeoNumber": 200016,
+    "SeasonYear": 2026,
+    "Name": "PRCA Orin Muri Permit Bronc Ride Challenge",
+    "City": "Miles City",
+    "StateAbbrv": "MT",
+    "StartDate": "2026-05-15T00:00:00",
+    "EndDate": "2026-05-15T00:00:00",
+    "Payout": 2000,
+    "HideGridView": false,
+    "WebsiteUrl": null,
+    "InProgress": false,
+    "IsActive": true,
+    "AnniversaryNumber": 5,
+    "ApResults": null,
+    "JoinedYear": 2022,
+    "VenueName": "Eastern Montana Fair Aren",
+    "CircuitId": 4,
+    "CircuitIds": [4],
+    "TourIds": [],
+    "Daysheets": 0,
+    "HasDaysheets": false
+  }
+}

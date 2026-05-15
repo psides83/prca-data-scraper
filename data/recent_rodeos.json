@@ -1,0 +1,29 @@
+{
+  "error": null,
+  "data": [
+    {
+      "RodeoId": 18705,
+      "RodeoNumber": 200016,
+      "SeasonYear": 2026,
+      "Name": "PRCA Orin Muri Permit Bronc Ride Challenge",
+      "City": "Miles City",
+      "StateAbbrv": "MT",
+      "StartDate": "2026-05-15T00:00:00",
+      "EndDate": "2026-05-15T00:00:00",
+      "Payout": 2000,
+      "HideGridView": false,
+      "WebsiteUrl": null,
+      "InProgress": false,
+      "IsActive": true,
+      "AnniversaryNumber": 0,
+      "ApResults": null,
+      "JoinedYear": 2027,
+      "VenueName": "Eastern Montana Fair Aren",
+      "CircuitId": 4,
+      "CircuitIds": [4],
+      "TourIds": [],
+      "Daysheets": 0,
+      "HasDaysheets": false
+    }
+  ]
+}

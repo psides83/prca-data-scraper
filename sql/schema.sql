@@ -196,6 +196,13 @@ CREATE TABLE IF NOT EXISTS prca_contestants (
   image_synced_at TIMESTAMPTZ,
   image_sync_status TEXT,
   image_sync_error TEXT,
+  generated_total_earnings NUMERIC(14,2),
+  generated_world_titles INTEGER,
+  generated_nfr_qualifications INTEGER,
+  generated_fields_updated_at TIMESTAMPTZ,
+  bio_synced_at TIMESTAMPTZ,
+  bio_sync_status TEXT,
+  bio_sync_error TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -221,7 +228,18 @@ ALTER TABLE prca_contestants
   ADD COLUMN IF NOT EXISTS image_315_url TEXT,
   ADD COLUMN IF NOT EXISTS image_synced_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS image_sync_status TEXT,
-  ADD COLUMN IF NOT EXISTS image_sync_error TEXT;
+  ADD COLUMN IF NOT EXISTS image_sync_error TEXT,
+  ADD COLUMN IF NOT EXISTS derived_is_active BOOLEAN,
+  ADD COLUMN IF NOT EXISTS derived_activity_reason TEXT,
+  ADD COLUMN IF NOT EXISTS derived_activity_year INTEGER,
+  ADD COLUMN IF NOT EXISTS derived_activity_updated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS generated_total_earnings NUMERIC(14,2),
+  ADD COLUMN IF NOT EXISTS generated_world_titles INTEGER,
+  ADD COLUMN IF NOT EXISTS generated_nfr_qualifications INTEGER,
+  ADD COLUMN IF NOT EXISTS generated_fields_updated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS bio_synced_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS bio_sync_status TEXT,
+  ADD COLUMN IF NOT EXISTS bio_sync_error TEXT;
 
 CREATE TABLE IF NOT EXISTS prca_standings (
   id TEXT PRIMARY KEY,
@@ -243,6 +261,227 @@ CREATE TABLE IF NOT EXISTS prca_standings (
 
 CREATE INDEX IF NOT EXISTS idx_prca_standings_lookup
   ON prca_standings (season_year, standing_type, event_abbrev, place);
+
+DROP TABLE IF EXISTS prca_athlete_career_summary;
+
+CREATE OR REPLACE VIEW prca_app_athlete_rankings AS
+SELECT
+  s.contestant_id,
+  s.season_year,
+  s.event_abbrev,
+  et.event_name,
+  s.place AS world_rank,
+  s.earnings,
+  s.points,
+  s.synced_at
+FROM prca_standings s
+JOIN prca_event_types et
+  ON et.event_abbrev = s.event_abbrev
+WHERE s.standing_type = 'world'
+  AND s.season_year = EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER;
+
+CREATE TABLE IF NOT EXISTS prca_rodeos (
+  rodeo_id INTEGER PRIMARY KEY,
+  rodeo_number INTEGER,
+  season_year INTEGER,
+  name TEXT,
+  city TEXT,
+  state_abbrv TEXT,
+  start_date DATE,
+  end_date DATE,
+  payout NUMERIC(14,2),
+  venue_name TEXT,
+  circuit_id INTEGER,
+  circuit_ids INTEGER[],
+  tour_ids INTEGER[],
+  in_progress BOOLEAN,
+  is_active BOOLEAN,
+  ap_results TEXT,
+  source_payload JSONB,
+  synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_prca_rodeos_dates
+  ON prca_rodeos (start_date, end_date, season_year);
+
+CREATE TABLE IF NOT EXISTS prca_rodeo_results (
+  result_key TEXT PRIMARY KEY,
+  rodeo_id INTEGER NOT NULL REFERENCES prca_rodeos(rodeo_id),
+  contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),
+  event_type TEXT,
+  go_round INTEGER,
+  go_round_label TEXT,
+  place INTEGER,
+  payoff NUMERIC(14,2),
+  score NUMERIC(12,4),
+  time NUMERIC(12,4),
+  team_id INTEGER,
+  stock_id INTEGER,
+  stock_name TEXT,
+  contractor_name TEXT,
+  number_scores INTEGER,
+  left_stock_score NUMERIC(12,4),
+  right_stock_score NUMERIC(12,4),
+  ride_timestamp TIMESTAMPTZ,
+  source_payload JSONB,
+  synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_prca_rodeo_results_contestant
+  ON prca_rodeo_results (contestant_id, ride_timestamp, rodeo_id);
+
+CREATE INDEX IF NOT EXISTS idx_prca_rodeo_results_rodeo
+  ON prca_rodeo_results (rodeo_id, event_type, go_round);
+
+CREATE TABLE IF NOT EXISTS prca_athlete_bio_refresh_queue (
+  contestant_id INTEGER PRIMARY KEY REFERENCES prca_contestants(contestant_id),
+  reason TEXT NOT NULL,
+  source TEXT NOT NULL,
+  source_rodeo_id INTEGER,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  processed_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'pending',
+  error_message TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_prca_athlete_bio_refresh_queue_status
+  ON prca_athlete_bio_refresh_queue (status, last_seen_at);
+
+DO $$
+BEGIN
+  IF to_regclass('public.prca_athlete_bios') IS NOT NULL THEN
+    UPDATE prca_contestants c
+    SET biography_text = COALESCE(c.biography_text, b.biography_text),
+        video_highlights = COALESCE(c.video_highlights, b.video_highlights),
+        source_payload = COALESCE(c.source_payload, b.source_payload),
+        bio_synced_at = COALESCE(c.bio_synced_at, b.synced_at),
+        bio_sync_status = COALESCE(c.bio_sync_status, b.sync_status),
+        bio_sync_error = COALESCE(c.bio_sync_error, b.sync_error),
+        updated_at = NOW()
+    FROM prca_athlete_bios b
+    WHERE c.contestant_id = b.contestant_id;
+  END IF;
+END $$;
+
+DROP TABLE IF EXISTS prca_athlete_bios;
+
+CREATE TABLE IF NOT EXISTS prca_athlete_results (
+  contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),
+  rodeo_result_id INTEGER NOT NULL,
+  rodeo_id INTEGER,
+  rodeo_name TEXT,
+  city TEXT,
+  state_abbrv TEXT,
+  start_date DATE,
+  end_date DATE,
+  event_type TEXT,
+  score NUMERIC(12,4),
+  place INTEGER,
+  payoff NUMERIC(14,2),
+  time NUMERIC(12,4),
+  round TEXT,
+  stock_id INTEGER,
+  stock TEXT,
+  season_year INTEGER,
+  source_payload JSONB,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (contestant_id, rodeo_result_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prca_athlete_results_lookup
+  ON prca_athlete_results (contestant_id, season_year, event_type);
+
+CREATE TABLE IF NOT EXISTS prca_athlete_averages (
+  contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),
+  aggregate_id INTEGER NOT NULL,
+  rodeo_id INTEGER,
+  rodeo_name TEXT,
+  city TEXT,
+  state_abbrv TEXT,
+  season_year INTEGER,
+  start_date DATE,
+  end_date DATE,
+  event_type TEXT,
+  score NUMERIC(12,4),
+  number_scores INTEGER,
+  place INTEGER,
+  payoff NUMERIC(14,2),
+  time NUMERIC(12,4),
+  team_id INTEGER,
+  round TEXT,
+  created_on TIMESTAMPTZ,
+  modified_on TIMESTAMPTZ,
+  source_payload JSONB,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (contestant_id, aggregate_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prca_athlete_averages_lookup
+  ON prca_athlete_averages (contestant_id, season_year, event_type);
+
+CREATE TABLE IF NOT EXISTS prca_athlete_career (
+  contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),
+  season_year INTEGER NOT NULL,
+  event_type TEXT NOT NULL,
+  earnings NUMERIC(14,2),
+  world_titles INTEGER,
+  nfr_qualified BOOLEAN,
+  riding_statistics JSONB,
+  timed_statistics JSONB,
+  source_payload JSONB,
+  source_standing_type TEXT,
+  circuit_id INTEGER,
+  world_rank INTEGER,
+  won_world_title BOOLEAN NOT NULL DEFAULT FALSE,
+  source_standings_id TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (contestant_id, season_year, event_type)
+);
+
+ALTER TABLE prca_athlete_career
+  ADD COLUMN IF NOT EXISTS source_standing_type TEXT,
+  ADD COLUMN IF NOT EXISTS circuit_id INTEGER,
+  ADD COLUMN IF NOT EXISTS world_rank INTEGER,
+  ADD COLUMN IF NOT EXISTS won_world_title BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS source_standings_id TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_prca_athlete_career_lookup
+  ON prca_athlete_career (contestant_id, season_year);
+
+CREATE TABLE IF NOT EXISTS prca_athlete_rankings (
+  contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),
+  season_year INTEGER NOT NULL,
+  rank_type TEXT NOT NULL,
+  event_name TEXT NOT NULL,
+  rank_label TEXT,
+  rank_number INTEGER,
+  tour_id INTEGER,
+  circuit_id INTEGER,
+  source_payload JSONB,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE NULLS NOT DISTINCT (contestant_id, season_year, rank_type, event_name, tour_id, circuit_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prca_athlete_rankings_lookup
+  ON prca_athlete_rankings (contestant_id, season_year, rank_type);
+
+CREATE TABLE IF NOT EXISTS prca_athlete_earnings (
+  contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),
+  season_year INTEGER NOT NULL,
+  event_type TEXT NOT NULL,
+  earning_index INTEGER NOT NULL,
+  earnings NUMERIC(14,2),
+  source_payload JSONB,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (contestant_id, season_year, event_type, earning_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prca_athlete_earnings_lookup
+  ON prca_athlete_earnings (contestant_id, season_year);
 
 ALTER TABLE prca_standings
   ADD COLUMN IF NOT EXISTS id TEXT;

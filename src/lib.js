@@ -3,6 +3,8 @@ import { Pool } from "pg";
 
 dotenv.config();
 
+const EXCLUDED_STANDINGS_EVENT_ABBREVS = new Set(["TR"]);
+
 export function getRequiredEnv(name) {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required env var: ${name}`);
@@ -63,6 +65,11 @@ export function normalizePhotoUrl(url) {
 export function normalizeStringArray(value) {
   if (!Array.isArray(value)) return [];
   return value.map((item) => cleanText(item)).filter(Boolean);
+}
+
+export function isStandingsEvent(row) {
+  const eventAbbrev = cleanText(row.EventAbbrev)?.toUpperCase();
+  return Boolean(eventAbbrev) && !EXCLUDED_STANDINGS_EVENT_ABBREVS.has(eventAbbrev) && normalizeBoolean(row.IsStandingsEvent, true);
 }
 
 export function extractCircuitCode(name) {
@@ -196,7 +203,7 @@ export async function finishScrapeRun(client, { runId, status, successCount, fai
   );
 }
 
-async function createScrapeRequest(client, request) {
+export async function createScrapeRequest(client, request) {
   const result = await client.query(
     `INSERT INTO prca_scrape_requests (
        scrape_run_id, source_url, season_year, standing_type, event_abbrev,
@@ -207,9 +214,9 @@ async function createScrapeRequest(client, request) {
     [
       request.scrapeRunId ?? null,
       request.sourceUrl,
-      request.seasonYear,
-      request.standingType,
-      request.eventAbbrev,
+      request.seasonYear ?? null,
+      request.standingType ?? null,
+      request.eventAbbrev ?? null,
       request.tourId ?? null,
       request.circuitId ?? null,
       request.scopeId ?? null,
@@ -219,7 +226,7 @@ async function createScrapeRequest(client, request) {
   return result.rows[0].id;
 }
 
-async function finishScrapeRequest(client, request) {
+export async function finishScrapeRequest(client, request) {
   await client.query(
     `UPDATE prca_scrape_requests
      SET completed_at = NOW(),
@@ -260,7 +267,7 @@ export async function upsertEventTypes(client, rows) {
         row.EventTypeId,
         cleanText(row.EventAbbrev),
         cleanText(row.EventName),
-        normalizeBoolean(row.IsStandingsEvent, true),
+        isStandingsEvent(row),
         normalizeBoolean(row.IsResultsEvent, true),
       ]
     );
@@ -329,16 +336,12 @@ export async function upsertContestantProfiles(client, rows) {
          last_name = EXCLUDED.last_name,
          nick_name = EXCLUDED.nick_name,
          hometown = EXCLUDED.hometown,
-         sidearm_photo_url = EXCLUDED.sidearm_photo_url,
-         featured = EXCLUDED.featured,
-         birth_date = EXCLUDED.birth_date,
-         age = EXCLUDED.age,
-         total_earnings = EXCLUDED.total_earnings,
-         year_earnings = EXCLUDED.year_earnings,
-         world_titles = EXCLUDED.world_titles,
-         nfr_qualifications = EXCLUDED.nfr_qualifications,
+        sidearm_photo_url = EXCLUDED.sidearm_photo_url,
+        featured = EXCLUDED.featured,
+        birth_date = EXCLUDED.birth_date,
+        age = EXCLUDED.age,
          date_joined = EXCLUDED.date_joined,
-         event_types = EXCLUDED.event_types,
+        event_types = EXCLUDED.event_types,
          biography_text = EXCLUDED.biography_text,
          video_highlights = EXCLUDED.video_highlights,
          is_active = EXCLUDED.is_active,
@@ -356,10 +359,10 @@ export async function upsertContestantProfiles(client, rows) {
         normalizeBoolean(row.Featured, false),
         normalizeDate(row.BirthDate),
         normalizeOptionalInt(row.Age),
-        normalizeOptionalNumber(row.TotalEarnings),
-        normalizeOptionalNumber(row.YearEarnings),
-        cleanText(row.WorldTitles),
-        cleanText(row.NFRQualifications),
+        null,
+        null,
+        null,
+        null,
         normalizeDate(row.DateJoined),
         normalizeStringArray(row.EventTypes),
         cleanText(row.BiographyText),
@@ -477,7 +480,7 @@ export async function fetchLookups(apiBase) {
     tours,
     eventAbbrevs: eventTypes.map((x) => cleanText(x.EventAbbrev)).filter(Boolean),
     standingsEventAbbrevs: eventTypes
-      .filter((x) => normalizeBoolean(x.IsStandingsEvent, true))
+      .filter((x) => isStandingsEvent(x))
       .map((x) => cleanText(x.EventAbbrev))
       .filter(Boolean),
     resultsEventAbbrevs: eventTypes

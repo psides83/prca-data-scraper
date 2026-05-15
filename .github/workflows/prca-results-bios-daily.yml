@@ -1,37 +1,37 @@
-name: PRCA standings daily scrape
+name: PRCA recent results and queued bios
 
 on:
   schedule:
-    - cron: "0 11 * * *"
+    - cron: "30 11 * * *"
   workflow_dispatch:
     inputs:
-      retry_failed:
-        description: "Run unresolved failed target retry after daily scrape"
+      results_lookback_days:
+        description: "Number of days to overlap when discovering recent results"
         required: false
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
+        default: "3"
 
 concurrency:
-  group: prca-standings-daily
+  group: prca-results-bios-daily
   cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  scrape:
+  sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
 
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       PRCA_API_BASE: https://d1kfpvgfupbmyo.cloudfront.net/services/pro_rodeo.ashx
-      PRCA_MEDIA_BASE: https://www.prorodeo.com
-      REQUEST_DELAY_MS: "700"
-      REQUEST_JITTER_MS: "400"
+      RESULTS_LOOKBACK_DAYS: ${{ github.event.inputs.results_lookback_days || '3' }}
+      RESULTS_PAGE_SIZE: "100"
+      RESULTS_DETAIL_DELAY_MS: "700"
+      RESULTS_DETAIL_JITTER_MS: "400"
+      ATHLETE_BIO_SCOPE: active_or_queued
+      ATHLETE_BIO_DELAY_MS: "700"
+      ATHLETE_BIO_JITTER_MS: "400"
 
     steps:
       - name: Checkout
@@ -56,12 +56,8 @@ jobs:
       - name: Initialize schema
         run: npm run db:init
 
-      - name: Run daily standings scrape
-        run: npm run standings:daily
+      - name: Discover recent results
+        run: npm run results:daily
 
-      - name: Retry unresolved failed targets
-        if: ${{ always() && (github.event_name == 'schedule' || inputs.retry_failed == 'true') }}
-        run: npm run standings:retry-failed
-
-      - name: Generate athlete standings-derived fields
-        run: npm run athletes:generate-derived
+      - name: Refresh queued athlete bios
+        run: npm run athletes:sync-bios

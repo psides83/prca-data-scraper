@@ -12,7 +12,10 @@
     "contestants:cleanup-photo-urls": "node src/cleanup-contestant-photo-urls.js",
     "contestants:import": "node src/import-contestants.js",
     "contestants:sync": "node src/sync-contestants.js",
-    "contestants:sync-images": "node src/sync-contestant-images.js"
+    "contestants:sync-images": "node src/sync-contestant-images.js",
+    "athletes:sync-bios": "node src/sync-athlete-bios.js",
+    "athletes:generate-derived": "node src/generate-athlete-derived-fields.js",
+    "results:daily": "node src/sync-recent-results.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1047.0",
