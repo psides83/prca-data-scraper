@@ -21,6 +21,18 @@ export function normalizeOptionalInt(value) {
   return Number.isInteger(n) ? n : null;
 }
 
+export function normalizeOptionalNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function normalizeDate(value) {
+  const cleaned = cleanText(value);
+  if (!cleaned) return null;
+  return cleaned.slice(0, 10);
+}
+
 export function normalizeBoolean(value, fallback = false) {
   if (value === null || value === undefined) return fallback;
   if (typeof value === "boolean") return value;
@@ -46,6 +58,11 @@ export function normalizePhotoUrl(url) {
   } catch {
     return cleaned.startsWith("images/") ? `/${cleaned}` : cleaned;
   }
+}
+
+export function normalizeStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => cleanText(item)).filter(Boolean);
 }
 
 export function extractCircuitCode(name) {
@@ -290,6 +307,74 @@ export async function upsertTours(client, rows) {
   }
 }
 
+export async function upsertContestantProfiles(client, rows) {
+  let count = 0;
+  for (const row of rows) {
+    await client.query(
+      `INSERT INTO prca_contestants (
+         contestant_id, first_name, last_name, nick_name, hometown, sidearm_photo_url,
+         featured, birth_date, age, total_earnings, year_earnings, world_titles,
+         nfr_qualifications, date_joined, event_types, biography_text, video_highlights,
+         is_active, show_inactive_bio_override, hide_active_bio_override, source_payload, updated_at
+       )
+       VALUES (
+         $1, $2, $3, $4, $5, $6,
+         $7, $8, $9, $10, $11, $12,
+         $13, $14, $15, $16, $17,
+         $18, $19, $20, $21::jsonb, NOW()
+       )
+       ON CONFLICT (contestant_id)
+       DO UPDATE SET
+         first_name = EXCLUDED.first_name,
+         last_name = EXCLUDED.last_name,
+         nick_name = EXCLUDED.nick_name,
+         hometown = EXCLUDED.hometown,
+         sidearm_photo_url = EXCLUDED.sidearm_photo_url,
+         featured = EXCLUDED.featured,
+         birth_date = EXCLUDED.birth_date,
+         age = EXCLUDED.age,
+         total_earnings = EXCLUDED.total_earnings,
+         year_earnings = EXCLUDED.year_earnings,
+         world_titles = EXCLUDED.world_titles,
+         nfr_qualifications = EXCLUDED.nfr_qualifications,
+         date_joined = EXCLUDED.date_joined,
+         event_types = EXCLUDED.event_types,
+         biography_text = EXCLUDED.biography_text,
+         video_highlights = EXCLUDED.video_highlights,
+         is_active = EXCLUDED.is_active,
+         show_inactive_bio_override = EXCLUDED.show_inactive_bio_override,
+         hide_active_bio_override = EXCLUDED.hide_active_bio_override,
+         source_payload = EXCLUDED.source_payload,
+         updated_at = NOW()`,
+      [
+        row.ContestantId,
+        cleanText(row.FirstName),
+        cleanText(row.LastName),
+        cleanText(row.NickName),
+        cleanText(row.Hometown),
+        normalizePhotoUrl(row.PhotoUrl ?? row.SidearmPhotoUrl),
+        normalizeBoolean(row.Featured, false),
+        normalizeDate(row.BirthDate),
+        normalizeOptionalInt(row.Age),
+        normalizeOptionalNumber(row.TotalEarnings),
+        normalizeOptionalNumber(row.YearEarnings),
+        cleanText(row.WorldTitles),
+        cleanText(row.NFRQualifications),
+        normalizeDate(row.DateJoined),
+        normalizeStringArray(row.EventTypes),
+        cleanText(row.BiographyText),
+        cleanText(row.VideoHighlights),
+        normalizeBoolean(row.IsActive, true),
+        normalizeBoolean(row.ShowInactiveBioOverride, false),
+        normalizeBoolean(row.HideActiveBioOverride, false),
+        JSON.stringify(row),
+      ]
+    );
+    count += 1;
+  }
+  return count;
+}
+
 export async function upsertStandings(client, rows, mediaBase, scrapeRequestId = null, keyContext = {}) {
   let count = 0;
   const placeCounts = rows.reduce((counts, row) => {
@@ -309,7 +394,7 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
          last_name = EXCLUDED.last_name,
          nick_name = EXCLUDED.nick_name,
          hometown = EXCLUDED.hometown,
-         sidearm_photo_url = EXCLUDED.sidearm_photo_url,
+         sidearm_photo_url = COALESCE(EXCLUDED.sidearm_photo_url, prca_contestants.sidearm_photo_url),
          updated_at = NOW()`,
       [
         row.ContestantId,

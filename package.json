@@ -9,9 +9,13 @@
     "standings:backfill": "node src/backfill-standings.js",
     "standings:daily": "node src/daily-standings.js",
     "standings:retry-failed": "node src/retry-failed-standings.js",
-    "contestants:cleanup-photo-urls": "node src/cleanup-contestant-photo-urls.js"
+    "contestants:cleanup-photo-urls": "node src/cleanup-contestant-photo-urls.js",
+    "contestants:import": "node src/import-contestants.js",
+    "contestants:sync": "node src/sync-contestants.js",
+    "contestants:sync-images": "node src/sync-contestant-images.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1047.0",
     "dotenv": "^16.4.5",
     "pg": "^8.11.5"
   }

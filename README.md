@@ -10,16 +10,27 @@ Ingest standings data from the ProRodeo API into Neon/Postgres with normalized t
 - `npm run standings:daily`: current season full sync for daily scheduling
 - `npm run standings:retry-failed`: retry failed standings requests only
 - `npm run contestants:cleanup-photo-urls`: normalize existing contestant photo URLs
+- `npm run contestants:import`: import contestants from `data/prca_contestants.json`
+- `npm run contestants:sync`: sync latest contestants from the PRCA athletes endpoint
+- `npm run contestants:sync-images`: download contestant images and upload original/315px versions to Cloudflare R2
 
 ## GitHub Actions
 
 Daily standings scraping is configured in `.github/workflows/prca-standings-daily.yml`.
+Weekly contestant profile syncing is configured in `.github/workflows/prca-contestants-weekly.yml`.
 
 Required repository secret:
 
 - `DATABASE_URL`: Neon Postgres connection string
+- `R2_ACCOUNT_ID`: Cloudflare account id
+- `R2_ACCESS_KEY_ID`: R2 access key id
+- `R2_SECRET_ACCESS_KEY`: R2 secret access key
+- `R2_BUCKET`: R2 bucket name
+- `R2_PUBLIC_BASE_URL`: public bucket/custom-domain base URL
 
-The workflow runs every day at `11:00 UTC` and can also be started manually from the GitHub Actions tab. It initializes the schema, runs `standings:daily`, then retries unresolved failed targets.
+The standings workflow runs every day at `11:00 UTC` and can also be started manually from the GitHub Actions tab. It initializes the schema, runs `standings:daily`, then retries unresolved failed targets.
+
+The contestants workflow runs every Monday at `12:00 UTC` and can also be started manually. It initializes the schema, runs `contestants:sync`, then runs `contestants:sync-images`.
 
 ## Backfill scope
 
@@ -60,6 +71,8 @@ Use both for API pacing:
 
 - `REQUEST_DELAY_MS` (base pause after each standings request)
 - `REQUEST_JITTER_MS` (random extra delay)
+- `IMAGE_SYNC_DELAY_MS` (base pause after each contestant image sync)
+- `IMAGE_SYNC_JITTER_MS` (random extra image-sync delay)
 
 Actual pause = `delay + random(0..jitter)`.
 
@@ -102,12 +115,17 @@ If the API returns tied places within the same standings response, the contestan
 
 - Names and labels are whitespace-normalized and trimmed.
 - Blank strings become `null`.
+- Contestant profile imports upsert by `contestant_id`, so duplicates are updated rather than inserted twice.
+- Contestant profile sync uses `/athletes?event_type=&letter=&page_size=15000&index=1&search_term=&search_type=&exact_search=null`.
 - Event abbreviations are uppercased.
 - Standings scrapes only target events where `is_standings_event` is true.
 - Future results scrapes should only target events where `is_results_event` is true.
 - Standing types are lowercased.
 - ProRodeo photo URLs are stored as relative paths like `/images/...`.
 - Existing absolute ProRodeo photo URLs can be cleaned with `npm run contestants:cleanup-photo-urls`.
+- Contestant images are stored in R2 at `contestants/{contestant_id}/original.{ext}` and `contestants/{contestant_id}/315.{ext}`.
+- The source image URLs are `https://d1kfpvgfupbmyo.cloudfront.net${sidearm_photo_url}` and `https://d1kfpvgfupbmyo.cloudfront.net${sidearm_photo_url}?width=315&height=315`.
+- Image sync fetches original and 315px versions together for one contestant, then waits according to `IMAGE_SYNC_DELAY_MS` and `IMAGE_SYNC_JITTER_MS` before moving to the next contestant.
 - Circuit codes are extracted from names like `Texas (L)` into `prca_circuits.code`.
 - Deleted circuits and inactive/deleted tours are stored in lookup tables but skipped for backfill/daily target generation.
 
