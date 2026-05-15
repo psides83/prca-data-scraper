@@ -7,9 +7,7 @@ import {
   finishScrapeRequest,
   finishScrapeRun,
   formatDuration,
-  normalizeDate,
   normalizeOptionalInt,
-  normalizeOptionalNumber,
   sleep,
   upsertContestantProfiles,
   withJitter,
@@ -110,11 +108,6 @@ async function loadTargets(client, { limit, force, scope, currentYear, resyncHou
   return result.rows.map((row) => row.contestant_id);
 }
 
-async function deleteExistingAthleteDetails(client, contestantId) {
-  await client.query("DELETE FROM prca_athlete_results WHERE contestant_id = $1", [contestantId]);
-  await client.query("DELETE FROM prca_athlete_averages WHERE contestant_id = $1", [contestantId]);
-}
-
 async function updateContestantBioSuccess(client, bio) {
   await client.query(
     `UPDATE prca_contestants
@@ -169,150 +162,16 @@ async function markBioQueueFailed(client, contestantId, err) {
   );
 }
 
-async function insertResults(client, contestantId, rows) {
-  let count = 0;
-  for (const row of rows) {
-    const rodeoResultId = normalizeOptionalInt(row.RodeoResultId);
-    if (rodeoResultId === null) continue;
-
-    await client.query(
-      `INSERT INTO prca_athlete_results (
-         contestant_id, rodeo_result_id, rodeo_id, rodeo_name, city, state_abbrv,
-         start_date, end_date, event_type, score, place, payoff, time, round,
-         stock_id, stock, season_year, source_payload, updated_at
-       )
-       VALUES (
-         $1, $2, $3, $4, $5, $6,
-         $7, $8, $9, $10, $11, $12, $13, $14,
-         $15, $16, $17, $18::jsonb, NOW()
-       )
-       ON CONFLICT (contestant_id, rodeo_result_id)
-       DO UPDATE SET
-         rodeo_id = EXCLUDED.rodeo_id,
-         rodeo_name = EXCLUDED.rodeo_name,
-         city = EXCLUDED.city,
-         state_abbrv = EXCLUDED.state_abbrv,
-         start_date = EXCLUDED.start_date,
-         end_date = EXCLUDED.end_date,
-         event_type = EXCLUDED.event_type,
-         score = EXCLUDED.score,
-         place = EXCLUDED.place,
-         payoff = EXCLUDED.payoff,
-         time = EXCLUDED.time,
-         round = EXCLUDED.round,
-         stock_id = EXCLUDED.stock_id,
-         stock = EXCLUDED.stock,
-         season_year = EXCLUDED.season_year,
-         source_payload = EXCLUDED.source_payload,
-         updated_at = NOW()`,
-      [
-        contestantId,
-        rodeoResultId,
-        normalizeOptionalInt(row.RodeoId),
-        cleanText(row.RodeoName),
-        cleanText(row.City),
-        cleanText(row.StateAbbrv),
-        normalizeDate(row.StartDate),
-        normalizeDate(row.EndDate),
-        cleanText(row.EventType),
-        normalizeOptionalNumber(row.Score),
-        normalizeOptionalInt(row.Place),
-        normalizeOptionalNumber(row.Payoff),
-        normalizeOptionalNumber(row.Time),
-        cleanText(row.Round),
-        normalizeOptionalInt(row.StockId),
-        cleanText(row.Stock),
-        normalizeOptionalInt(row.SeasonYear),
-        JSON.stringify(row),
-      ]
-    );
-    count += 1;
-  }
-  return count;
-}
-
-async function insertAverages(client, contestantId, rows) {
-  let count = 0;
-  for (const row of rows) {
-    const aggregateId = normalizeOptionalInt(row.AggregateId);
-    if (aggregateId === null) continue;
-
-    await client.query(
-      `INSERT INTO prca_athlete_averages (
-         contestant_id, aggregate_id, rodeo_id, rodeo_name, city, state_abbrv,
-         season_year, start_date, end_date, event_type, score, number_scores,
-         place, payoff, time, team_id, round, created_on, modified_on, source_payload, updated_at
-       )
-       VALUES (
-         $1, $2, $3, $4, $5, $6,
-         $7, $8, $9, $10, $11, $12,
-         $13, $14, $15, $16, $17, $18, $19, $20::jsonb, NOW()
-       )
-       ON CONFLICT (contestant_id, aggregate_id)
-       DO UPDATE SET
-         rodeo_id = EXCLUDED.rodeo_id,
-         rodeo_name = EXCLUDED.rodeo_name,
-         city = EXCLUDED.city,
-         state_abbrv = EXCLUDED.state_abbrv,
-         season_year = EXCLUDED.season_year,
-         start_date = EXCLUDED.start_date,
-         end_date = EXCLUDED.end_date,
-         event_type = EXCLUDED.event_type,
-         score = EXCLUDED.score,
-         number_scores = EXCLUDED.number_scores,
-         place = EXCLUDED.place,
-         payoff = EXCLUDED.payoff,
-         time = EXCLUDED.time,
-         team_id = EXCLUDED.team_id,
-         round = EXCLUDED.round,
-         created_on = EXCLUDED.created_on,
-         modified_on = EXCLUDED.modified_on,
-         source_payload = EXCLUDED.source_payload,
-         updated_at = NOW()`,
-      [
-        contestantId,
-        aggregateId,
-        normalizeOptionalInt(row.RodeoId),
-        cleanText(row.RodeoName),
-        cleanText(row.City),
-        cleanText(row.StateAbbrv),
-        normalizeOptionalInt(row.SeasonYear),
-        normalizeDate(row.StartDate),
-        normalizeDate(row.EndDate),
-        cleanText(row.EventType),
-        normalizeOptionalNumber(row.Score),
-        normalizeOptionalInt(row.NumberScores),
-        normalizeOptionalInt(row.Place),
-        normalizeOptionalNumber(row.Payoff),
-        normalizeOptionalNumber(row.Time),
-        normalizeOptionalInt(row.TeamId),
-        cleanText(row.Round),
-        row.CreatedOn || null,
-        row.ModifiedOn || null,
-        JSON.stringify(row),
-      ]
-    );
-    count += 1;
-  }
-  return count;
-}
-
 async function upsertAthleteDetails(client, bio) {
   const contestantId = normalizeOptionalInt(bio.ContestantId);
   if (contestantId === null) throw new Error("Athlete bio response is missing ContestantId");
 
   await upsertContestantProfiles(client, [bio]);
   await updateContestantBioSuccess(client, bio);
-  await deleteExistingAthleteDetails(client, contestantId);
-
-  const resultsCount = await insertResults(client, contestantId, Array.isArray(bio.Results) ? bio.Results : []);
-  const averagesCount = await insertAverages(client, contestantId, Array.isArray(bio.Averages) ? bio.Averages : []);
 
   return {
     profileCount: 1,
-    resultsCount,
-    averagesCount,
-    totalRows: 1 + resultsCount + averagesCount,
+    totalRows: 1,
   };
 }
 

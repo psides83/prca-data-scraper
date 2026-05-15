@@ -369,59 +369,8 @@ END $$;
 
 DROP TABLE IF EXISTS prca_athlete_bios;
 
-CREATE TABLE IF NOT EXISTS prca_athlete_results (
-  contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),
-  rodeo_result_id INTEGER NOT NULL,
-  rodeo_id INTEGER,
-  rodeo_name TEXT,
-  city TEXT,
-  state_abbrv TEXT,
-  start_date DATE,
-  end_date DATE,
-  event_type TEXT,
-  score NUMERIC(12,4),
-  place INTEGER,
-  payoff NUMERIC(14,2),
-  time NUMERIC(12,4),
-  round TEXT,
-  stock_id INTEGER,
-  stock TEXT,
-  season_year INTEGER,
-  source_payload JSONB,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (contestant_id, rodeo_result_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_prca_athlete_results_lookup
-  ON prca_athlete_results (contestant_id, season_year, event_type);
-
-CREATE TABLE IF NOT EXISTS prca_athlete_averages (
-  contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),
-  aggregate_id INTEGER NOT NULL,
-  rodeo_id INTEGER,
-  rodeo_name TEXT,
-  city TEXT,
-  state_abbrv TEXT,
-  season_year INTEGER,
-  start_date DATE,
-  end_date DATE,
-  event_type TEXT,
-  score NUMERIC(12,4),
-  number_scores INTEGER,
-  place INTEGER,
-  payoff NUMERIC(14,2),
-  time NUMERIC(12,4),
-  team_id INTEGER,
-  round TEXT,
-  created_on TIMESTAMPTZ,
-  modified_on TIMESTAMPTZ,
-  source_payload JSONB,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (contestant_id, aggregate_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_prca_athlete_averages_lookup
-  ON prca_athlete_averages (contestant_id, season_year, event_type);
+DROP TABLE IF EXISTS prca_athlete_results;
+DROP TABLE IF EXISTS prca_athlete_averages;
 
 CREATE TABLE IF NOT EXISTS prca_athlete_career (
   contestant_id INTEGER NOT NULL REFERENCES prca_contestants(contestant_id),

@@ -99,8 +99,6 @@ The API returns repeated contestant and standing fields in every standings row. 
 - `prca_rodeos`: one row per rodeo discovered from schedule/results.
 - `prca_rodeo_results`: one row per contestant result discovered from rodeo details.
 - `prca_athlete_bio_refresh_queue`: contestants discovered in recent results who should have bios refreshed.
-- `prca_athlete_results`: per-contestant rodeo result rows from the athlete bio endpoint.
-- `prca_athlete_averages`: per-contestant aggregate/average rows from the athlete bio endpoint.
 - `prca_athlete_career`: generated per-season/per-event career data from standings.
 - `prca_athlete_rankings`: generated world-ranking rows from world standings.
 - `prca_athlete_earnings`: generated annual/event earnings rows from standings.
@@ -179,7 +177,7 @@ If the API returns tied places within the same standings response, the contestan
 - Contestant images are stored in R2 at `contestants/{contestant_id}/original.{ext}` and `contestants/{contestant_id}/315.{ext}`.
 - The source image URLs are `https://d1kfpvgfupbmyo.cloudfront.net${sidearm_photo_url}` and `https://d1kfpvgfupbmyo.cloudfront.net${sidearm_photo_url}?width=315&height=315`.
 - Image sync fetches original and 315px versions together for one contestant, then waits according to `IMAGE_SYNC_DELAY_MS` and `IMAGE_SYNC_JITTER_MS` before moving to the next contestant.
-- Athlete bio sync stores static profile/bio fields on `prca_contestants`, stores source bio JSON in `prca_contestants.source_payload`, and stores non-generated result/average rows in separate tables; app-facing rankings, total earnings, NFR qualifications, and world titles are generated from standings instead.
+- Athlete bio sync stores only static profile/bio fields on `prca_contestants` and stores source bio JSON in `prca_contestants.source_payload`; it does not store the bio endpoint's large historical `Results` or `Averages` arrays in separate tables.
 - Results discovery calls `/schedule?type=results` over a configurable date window, then calls `/rodeo?id={RodeoId}` for each returned rodeo.
 - Results discovery queues every contestant found in detailed rodeo result data for a bio refresh and marks that contestant `derived_is_active = true` with reason `recent_result`.
 - The rodeo parser handles both detailed `Events` result maps and lighter `Winners` arrays.
