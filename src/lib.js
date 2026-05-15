@@ -382,9 +382,10 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
     counts.set(key, (counts.get(key) || 0) + 1);
     return counts;
   }, new Map());
+  const targetTourId = keyContext.standingType === "tour" ? keyContext.scopeId : null;
+  const targetCircuitId = keyContext.standingType === "circuit" ? keyContext.scopeId : null;
 
   for (const row of rows) {
-    const placeIsTied = placeCounts.get(String(row.Place)) > 1;
     await client.query(
       `INSERT INTO prca_contestants (contestant_id, first_name, last_name, nick_name, hometown, sidearm_photo_url, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, NOW())
@@ -405,7 +406,20 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
         normalizePhotoUrl(row.SidearmPhotoUrl, mediaBase),
       ]
     );
+  }
 
+  await client.query(
+    `DELETE FROM prca_standings
+     WHERE season_year = $1
+       AND standing_type = $2
+       AND event_abbrev = $3
+       AND tour_id IS NOT DISTINCT FROM $4
+       AND circuit_id IS NOT DISTINCT FROM $5`,
+    [keyContext.seasonYear, keyContext.standingType, keyContext.eventAbbrev, targetTourId, targetCircuitId]
+  );
+
+  for (const row of rows) {
+    const placeIsTied = placeCounts.get(String(row.Place)) > 1;
     await client.query(
       `INSERT INTO prca_standings (
          id, standing_id, season_year, standing_type, event_abbrev, contestant_id, tour_id, circuit_id,
@@ -436,8 +450,8 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
         keyContext.standingType,
         keyContext.eventAbbrev,
         row.ContestantId,
-        keyContext.standingType === "tour" ? keyContext.scopeId : null,
-        keyContext.standingType === "circuit" ? keyContext.scopeId : null,
+        targetTourId,
+        targetCircuitId,
         row.Place,
         row.Earnings,
         row.Points,
@@ -503,13 +517,21 @@ export async function syncSingleStandings(client, options) {
 
   try {
     const { data: rows, httpStatus } = await fetchJsonWithMeta(standingsUrl);
-    const loaded = await upsertStandings(client, rows, mediaBase, requestId, {
-      standingType,
-      eventTypeId,
-      eventAbbrev,
-      scopeId,
-      seasonYear,
-    });
+    let loaded = 0;
+    await client.query("BEGIN");
+    try {
+      loaded = await upsertStandings(client, rows, mediaBase, requestId, {
+        standingType,
+        eventTypeId,
+        eventAbbrev,
+        scopeId,
+        seasonYear,
+      });
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
     await finishScrapeRequest(client, {
       requestId,
       durationMs: Date.now() - started,
