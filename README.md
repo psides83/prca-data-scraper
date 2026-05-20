@@ -18,6 +18,8 @@ Ingest standings data from the ProRodeo API into Neon/Postgres with normalized t
 - `npm run results:daily`: discover recent result rodeos, store rodeo result rows, and queue affected athletes for bio refresh
 - `npm run schedules:sync`: sync rodeo schedule rows into `prca_rodeos`
 - `npm run venues:geocode`: geocode distinct rodeo venues and store coordinates on matching `prca_rodeos` rows
+- `npm run worker:dev`: run the Cloudflare Worker schedule API locally
+- `npm run worker:deploy`: deploy the Cloudflare Worker schedule API
 
 ## GitHub Actions
 
@@ -42,6 +44,38 @@ The contestants workflow runs every Monday at `12:00 UTC` and can also be starte
 The recent-results workflow runs every day at `11:30 UTC` and can also be started manually. It initializes the schema, runs `results:daily`, then runs `athletes:sync-bios` with `ATHLETE_BIO_SCOPE=active_or_queued`.
 
 The schedule workflow runs every Monday and Thursday at `12:15 UTC` and can also be started manually. By default it syncs the 2026 schedule window from `1/1/2026` through `9/30/2026`, matching the PRCA schedule URL. Override `SCHEDULE_YEAR`, `SCHEDULE_START_DATE`, or `SCHEDULE_END_DATE` for a different season/window.
+
+## Cloudflare Schedule API
+
+`worker/schedule.js` serves `prca_rodeos` from Neon through Cloudflare Workers. It supports the PRCA schedule path shape, including `/schedule` and `/services/pro_rodeo.ashx/schedule`, and returns:
+
+```json
+{
+  "error": null,
+  "data": []
+}
+```
+
+The response keeps the original PascalCase schedule-style fields and adds venue coordinate fields:
+
+- `VenueLatitude`
+- `VenueLongitude`
+- `VenueFormattedAddress`
+- `VenuePlaceId`
+- `VenueGeocodeProvider`
+- `VenueGeocodeStatus`
+- `VenueGeocodedAt`
+
+Supported query params include `start`, `end`, `active`, `page_size`, `index`, `search_term`, `circuitId`, and `tourId`.
+
+Configure the Worker secret before deploy:
+
+```bash
+npx wrangler secret put DATABASE_URL
+npm run worker:deploy
+```
+
+For local Worker testing, copy `.dev.vars.example` to `.dev.vars` and set `DATABASE_URL`, then run `npm run worker:dev`.
 
 ## Backfill scope
 

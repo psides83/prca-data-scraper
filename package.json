@@ -17,11 +17,17 @@
     "athletes:generate-derived": "node src/generate-athlete-derived-fields.js",
     "results:daily": "node src/sync-recent-results.js",
     "schedules:sync": "node src/sync-rodeo-schedules.js",
-    "venues:geocode": "node src/geocode-rodeo-venues.js"
+    "venues:geocode": "node src/geocode-rodeo-venues.js",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1047.0",
+    "@neondatabase/serverless": "^1.1.0",
     "dotenv": "^16.4.5",
     "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "wrangler": "^4.93.0"
   }
 }

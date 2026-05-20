@@ -1,0 +1,7 @@
+name = "prca-rodeo-schedule"
+main = "worker/schedule.js"
+compatibility_date = "2025-09-19"
+
+[vars]
+# Set DATABASE_URL as a Cloudflare Worker secret, not here:
+# npx wrangler secret put DATABASE_URL
