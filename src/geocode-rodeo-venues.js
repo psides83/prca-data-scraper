@@ -10,13 +10,19 @@ import {
 } from "./lib.js";
 
 const GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
+const GOOGLE_PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
 
-function getGeocodeApiKey() {
-  const key = process.env.GOOGLE_GEOCODING_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.GEOCODING_API_KEY;
-  if (!key) {
-    throw new Error("Missing geocoding API key. Set GOOGLE_GEOCODING_API_KEY, GOOGLE_MAPS_API_KEY, or GEOCODING_API_KEY.");
+function getProviderConfig() {
+  if (process.env.GOOGLE_PLACES_API_KEY) {
+    return { provider: "google_places", apiKey: process.env.GOOGLE_PLACES_API_KEY };
   }
-  return key;
+
+  const apiKey = process.env.GOOGLE_GEOCODING_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.GEOCODING_API_KEY;
+  if (apiKey) return { provider: "google_geocoding", apiKey };
+
+  throw new Error(
+    "Missing geocoding API key. Set GOOGLE_PLACES_API_KEY, GOOGLE_GEOCODING_API_KEY, GOOGLE_MAPS_API_KEY, or GEOCODING_API_KEY."
+  );
 }
 
 function buildVenueQuery(row) {
@@ -75,6 +81,62 @@ async function fetchGoogleGeocode({ query, apiKey }) {
   };
 }
 
+async function fetchGooglePlaces({ query, apiKey }) {
+  const res = await fetch(GOOGLE_PLACES_TEXT_SEARCH_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id,places.formattedAddress,places.location",
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      regionCode: "US",
+      pageSize: 1,
+    }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const errorMessage = cleanText(body.error?.message) || `Places request failed with HTTP ${res.status}`;
+    const err = new Error(errorMessage);
+    err.fatal = res.status === 403 || res.status === 429;
+    throw err;
+  }
+
+  const place = body.places?.[0];
+  if (!place) {
+    return {
+      status: "no_results",
+      latitude: null,
+      longitude: null,
+      formattedAddress: null,
+      placeId: null,
+      errorMessage: "ZERO_RESULTS",
+    };
+  }
+
+  const latitude = place.location?.latitude;
+  const longitude = place.location?.longitude;
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    throw new Error("Places response was missing location coordinates");
+  }
+
+  return {
+    status: "success",
+    latitude,
+    longitude,
+    formattedAddress: cleanText(place.formattedAddress),
+    placeId: cleanText(place.id),
+    errorMessage: null,
+  };
+}
+
+async function fetchVenueGeocode({ provider, query, apiKey }) {
+  if (provider === "google_places") return fetchGooglePlaces({ query, apiKey });
+  return fetchGoogleGeocode({ query, apiKey });
+}
+
 async function fetchVenueTargets(client, { limit, force, retryFailed }) {
   const params = [];
   const filters = ["venue_name IS NOT NULL", "city IS NOT NULL", "state_abbrv IS NOT NULL"];
@@ -106,14 +168,14 @@ async function fetchVenueTargets(client, { limit, force, retryFailed }) {
   return result.rows;
 }
 
-async function updateVenueRows(client, { target, query, result }) {
+async function updateVenueRows(client, { target, query, provider, result }) {
   const updated = await client.query(
     `UPDATE prca_rodeos
      SET venue_latitude = $4,
          venue_longitude = $5,
          venue_formatted_address = $6,
          venue_place_id = $7,
-         venue_geocode_provider = 'google_geocoding',
+         venue_geocode_provider = $11,
          venue_geocode_query = $8,
          venue_geocode_status = $9,
          venue_geocode_error = $10,
@@ -133,13 +195,14 @@ async function updateVenueRows(client, { target, query, result }) {
       query,
       result.status,
       result.errorMessage,
+      provider,
     ]
   );
   return updated.rowCount;
 }
 
 async function main() {
-  const apiKey = getGeocodeApiKey();
+  const { provider, apiKey } = getProviderConfig();
   const limit = normalizeOptionalInt(process.env.GEOCODE_LIMIT);
   const delayMs = normalizeOptionalInt(process.env.GEOCODE_DELAY_MS) ?? 200;
   const jitterMs = normalizeOptionalInt(process.env.GEOCODE_JITTER_MS) ?? 200;
@@ -158,7 +221,7 @@ async function main() {
       runType: "venue_geocode",
       targetCount: targets.length,
       metadata: {
-        provider: "google_geocoding",
+        provider,
         limit,
         force,
         retryFailed,
@@ -175,8 +238,8 @@ async function main() {
       console.log(`[venues] ${i + 1}/${targets.length}: ${query}`);
 
       try {
-        const result = await fetchGoogleGeocode({ query, apiKey });
-        const updatedRows = await updateVenueRows(client, { target, query, result });
+        const result = await fetchVenueGeocode({ provider, query, apiKey });
+        const updatedRows = await updateVenueRows(client, { target, query, provider, result });
         rowsLoaded += updatedRows;
         if (result.status === "success") {
           successCount += 1;
@@ -191,6 +254,7 @@ async function main() {
         await updateVenueRows(client, {
           target,
           query,
+          provider,
           result: {
             status: "failed",
             latitude: null,

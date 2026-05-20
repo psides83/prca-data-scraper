@@ -188,7 +188,7 @@ If the API returns tied places within the same standings response, the contestan
 - Results discovery calls `/schedule?type=results` over a configurable date window, then calls `/rodeo?id={RodeoId}` for each returned rodeo.
 - Schedule sync calls `/schedule?type=schedule` over the configured date window and upserts the returned rodeos into `prca_rodeos`.
 - Schedule sync stores normalized rodeo fields only, not the raw schedule JSON payload.
-- Venue geocoding uses `VenueName, City, StateAbbrv, USA` and updates matching `prca_rodeos` rows in place. Set `GOOGLE_GEOCODING_API_KEY`, `GOOGLE_MAPS_API_KEY`, or `GEOCODING_API_KEY` before running `npm run venues:geocode`.
+- Venue geocoding uses `VenueName, City, StateAbbrv, USA` and updates matching `prca_rodeos` rows in place. Set `GOOGLE_PLACES_API_KEY` for venue-name search, or `GOOGLE_GEOCODING_API_KEY`, `GOOGLE_MAPS_API_KEY`, or `GEOCODING_API_KEY` for geocoding fallback, before running `npm run venues:geocode`.
 - Results discovery queues every contestant found in detailed rodeo result data for a bio refresh and marks that contestant `derived_is_active = true` with reason `recent_result`.
 - The rodeo parser handles both detailed `Events` result maps and lighter `Winners` arrays.
 - Circuit codes are extracted from names like `Texas (L)` into `prca_circuits.code`.
