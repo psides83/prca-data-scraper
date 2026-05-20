@@ -297,6 +297,15 @@ CREATE TABLE IF NOT EXISTS prca_rodeos (
   in_progress BOOLEAN,
   is_active BOOLEAN,
   ap_results TEXT,
+  venue_latitude NUMERIC(10,7),
+  venue_longitude NUMERIC(10,7),
+  venue_formatted_address TEXT,
+  venue_place_id TEXT,
+  venue_geocode_provider TEXT,
+  venue_geocode_query TEXT,
+  venue_geocode_status TEXT,
+  venue_geocode_error TEXT,
+  venue_geocoded_at TIMESTAMPTZ,
   synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -310,8 +319,22 @@ ALTER TABLE prca_rodeos
 ALTER TABLE prca_rodeos
   ADD COLUMN IF NOT EXISTS has_daysheets BOOLEAN;
 
+ALTER TABLE prca_rodeos
+  ADD COLUMN IF NOT EXISTS venue_latitude NUMERIC(10,7),
+  ADD COLUMN IF NOT EXISTS venue_longitude NUMERIC(10,7),
+  ADD COLUMN IF NOT EXISTS venue_formatted_address TEXT,
+  ADD COLUMN IF NOT EXISTS venue_place_id TEXT,
+  ADD COLUMN IF NOT EXISTS venue_geocode_provider TEXT,
+  ADD COLUMN IF NOT EXISTS venue_geocode_query TEXT,
+  ADD COLUMN IF NOT EXISTS venue_geocode_status TEXT,
+  ADD COLUMN IF NOT EXISTS venue_geocode_error TEXT,
+  ADD COLUMN IF NOT EXISTS venue_geocoded_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_prca_rodeos_dates
   ON prca_rodeos (start_date, end_date, season_year);
+
+CREATE INDEX IF NOT EXISTS idx_prca_rodeos_venue_geocode
+  ON prca_rodeos (venue_geocode_status, venue_name, city, state_abbrv);
 
 CREATE TABLE IF NOT EXISTS prca_rodeo_results (
   result_key TEXT PRIMARY KEY,

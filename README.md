@@ -17,6 +17,7 @@ Ingest standings data from the ProRodeo API into Neon/Postgres with normalized t
 - `npm run athletes:generate-derived`: regenerate app-facing athlete totals, career, earnings, and rankings from standings
 - `npm run results:daily`: discover recent result rodeos, store rodeo result rows, and queue affected athletes for bio refresh
 - `npm run schedules:sync`: sync rodeo schedule rows into `prca_rodeos`
+- `npm run venues:geocode`: geocode distinct rodeo venues and store coordinates on matching `prca_rodeos` rows
 
 ## GitHub Actions
 
@@ -87,6 +88,8 @@ Use both for API pacing:
 - `ATHLETE_BIO_JITTER_MS` (random extra athlete-bio delay)
 - `RESULTS_DETAIL_DELAY_MS` (base pause after each rodeo detail request)
 - `RESULTS_DETAIL_JITTER_MS` (random extra rodeo-detail delay)
+- `GEOCODE_DELAY_MS` (base pause after each venue geocode request)
+- `GEOCODE_JITTER_MS` (random extra venue-geocode delay)
 
 Actual pause = `delay + random(0..jitter)`.
 
@@ -100,7 +103,7 @@ The API returns repeated contestant and standing fields in every standings row. 
 - `prca_contestants`: one row per `ContestantId`, including static profile/bio fields, generated totals, latest bio sync status, and normalized relative photo path.
 - `prca_standings`: one row per contestant/ranking context, keyed by season, type, event, contestant, tour, and circuit.
 - `prca_app_athlete_rankings`: current-season world-standings view for app rankings.
-- `prca_rodeos`: one row per rodeo discovered from schedule/results.
+- `prca_rodeos`: one row per rodeo discovered from schedule/results, including venue coordinates when geocoded.
 - `prca_rodeo_results`: one row per contestant result discovered from rodeo details.
 - `prca_athlete_bio_refresh_queue`: contestants discovered in recent results who should have bios refreshed.
 - `prca_athlete_career`: generated per-season/per-event career data from standings.
@@ -185,6 +188,7 @@ If the API returns tied places within the same standings response, the contestan
 - Results discovery calls `/schedule?type=results` over a configurable date window, then calls `/rodeo?id={RodeoId}` for each returned rodeo.
 - Schedule sync calls `/schedule?type=schedule` over the configured date window and upserts the returned rodeos into `prca_rodeos`.
 - Schedule sync stores normalized rodeo fields only, not the raw schedule JSON payload.
+- Venue geocoding uses `VenueName, City, StateAbbrv, USA` and updates matching `prca_rodeos` rows in place. Set `GOOGLE_GEOCODING_API_KEY`, `GOOGLE_MAPS_API_KEY`, or `GEOCODING_API_KEY` before running `npm run venues:geocode`.
 - Results discovery queues every contestant found in detailed rodeo result data for a bio refresh and marks that contestant `derived_is_active = true` with reason `recent_result`.
 - The rodeo parser handles both detailed `Events` result maps and lighter `Winners` arrays.
 - Circuit codes are extracted from names like `Texas (L)` into `prca_circuits.code`.

@@ -16,7 +16,8 @@
     "athletes:sync-bios": "node src/sync-athlete-bios.js",
     "athletes:generate-derived": "node src/generate-athlete-derived-fields.js",
     "results:daily": "node src/sync-recent-results.js",
-    "schedules:sync": "node src/sync-rodeo-schedules.js"
+    "schedules:sync": "node src/sync-rodeo-schedules.js",
+    "venues:geocode": "node src/geocode-rodeo-venues.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1047.0",
