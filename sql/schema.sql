@@ -290,10 +290,13 @@ CREATE TABLE IF NOT EXISTS prca_rodeos (
   start_date DATE,
   end_date DATE,
   payout NUMERIC(14,2),
+  website_url TEXT,
   venue_name TEXT,
   circuit_id INTEGER,
   circuit_ids INTEGER[],
   tour_ids INTEGER[],
+  daysheets INTEGER,
+  has_daysheets BOOLEAN,
   in_progress BOOLEAN,
   is_active BOOLEAN,
   ap_results TEXT,
@@ -301,6 +304,15 @@ CREATE TABLE IF NOT EXISTS prca_rodeos (
   synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE prca_rodeos
+  ADD COLUMN IF NOT EXISTS website_url TEXT;
+
+ALTER TABLE prca_rodeos
+  ADD COLUMN IF NOT EXISTS daysheets INTEGER;
+
+ALTER TABLE prca_rodeos
+  ADD COLUMN IF NOT EXISTS has_daysheets BOOLEAN;
 
 CREATE INDEX IF NOT EXISTS idx_prca_rodeos_dates
   ON prca_rodeos (start_date, end_date, season_year);

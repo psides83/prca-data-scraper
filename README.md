@@ -16,12 +16,14 @@ Ingest standings data from the ProRodeo API into Neon/Postgres with normalized t
 - `npm run athletes:sync-bios`: sync athlete bio/details for distinct contestants found in `prca_standings`
 - `npm run athletes:generate-derived`: regenerate app-facing athlete totals, career, earnings, and rankings from standings
 - `npm run results:daily`: discover recent result rodeos, store rodeo result rows, and queue affected athletes for bio refresh
+- `npm run schedules:sync`: sync rodeo schedule rows into `prca_rodeos`
 
 ## GitHub Actions
 
 Daily standings scraping is configured in `.github/workflows/prca-standings-daily.yml`.
 Weekly contestant profile syncing is configured in `.github/workflows/prca-contestants-weekly.yml`.
 Daily recent-results discovery and queued athlete bio refresh is configured in `.github/workflows/prca-results-bios-daily.yml`.
+Twice-weekly rodeo schedule syncing is configured in `.github/workflows/prca-schedules-twice-weekly.yml`.
 
 Required repository secret:
 
@@ -37,6 +39,8 @@ The standings workflow runs every day at `11:00 UTC` and can also be started man
 The contestants workflow runs every Monday at `12:00 UTC` and can also be started manually. It initializes the schema, runs `contestants:sync`, then runs `contestants:sync-images`.
 
 The recent-results workflow runs every day at `11:30 UTC` and can also be started manually. It initializes the schema, runs `results:daily`, then runs `athletes:sync-bios` with `ATHLETE_BIO_SCOPE=active_or_queued`.
+
+The schedule workflow runs every Monday and Thursday at `12:15 UTC` and can also be started manually. By default it syncs the 2026 schedule window from `1/1/2026` through `9/30/2026`, matching the PRCA schedule URL. Override `SCHEDULE_YEAR`, `SCHEDULE_START_DATE`, or `SCHEDULE_END_DATE` for a different season/window.
 
 ## Backfill scope
 
@@ -179,6 +183,8 @@ If the API returns tied places within the same standings response, the contestan
 - Image sync fetches original and 315px versions together for one contestant, then waits according to `IMAGE_SYNC_DELAY_MS` and `IMAGE_SYNC_JITTER_MS` before moving to the next contestant.
 - Athlete bio sync stores only static profile/bio fields on `prca_contestants` and stores source bio JSON in `prca_contestants.source_payload`; it does not store the bio endpoint's large historical `Results` or `Averages` arrays in separate tables.
 - Results discovery calls `/schedule?type=results` over a configurable date window, then calls `/rodeo?id={RodeoId}` for each returned rodeo.
+- Schedule sync calls `/schedule?type=schedule` over the configured date window and upserts the returned rodeos into `prca_rodeos`.
+- Schedule source JSON stored in `prca_rodeos.source_payload` omits `HideGridView`, `AnniversaryNumber`, `ApResults`, and `JoinedYear`.
 - Results discovery queues every contestant found in detailed rodeo result data for a bio refresh and marks that contestant `derived_is_active = true` with reason `recent_result`.
 - The rodeo parser handles both detailed `Events` result maps and lighter `Winners` arrays.
 - Circuit codes are extracted from names like `Texas (L)` into `prca_circuits.code`.

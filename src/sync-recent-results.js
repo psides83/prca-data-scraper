@@ -18,6 +18,7 @@ import {
 } from "./lib.js";
 
 const DEFAULT_API_BASE = "https://d1kfpvgfupbmyo.cloudfront.net/services/pro_rodeo.ashx";
+const OMITTED_RODEO_SOURCE_KEYS = new Set(["HideGridView", "AnniversaryNumber", "ApResults", "JoinedYear"]);
 
 function formatScheduleDate(date) {
   return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
@@ -94,6 +95,10 @@ function printResultsProgress({ index, total, rodeoId, successCount, failureCoun
 function normalizeIntArray(value) {
   if (!Array.isArray(value)) return [];
   return value.map((item) => normalizeOptionalInt(item)).filter((item) => item !== null);
+}
+
+function sanitizeRodeoPayload(row) {
+  return Object.fromEntries(Object.entries(row).filter(([key]) => !OMITTED_RODEO_SOURCE_KEYS.has(key)));
 }
 
 function extractRodeo(raw) {
@@ -181,10 +186,14 @@ async function upsertRodeo(client, rodeo) {
   await client.query(
     `INSERT INTO prca_rodeos (
        rodeo_id, rodeo_number, season_year, name, city, state_abbrv, start_date, end_date,
-       payout, venue_name, circuit_id, circuit_ids, tour_ids, in_progress, is_active,
-       ap_results, source_payload, synced_at, updated_at
+       payout, website_url, venue_name, circuit_id, circuit_ids, tour_ids, daysheets,
+       has_daysheets, in_progress, is_active, ap_results, source_payload, synced_at, updated_at
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, NOW(), NOW())
+     VALUES (
+       $1, $2, $3, $4, $5, $6, $7, $8,
+       $9, $10, $11, $12, $13, $14, $15,
+       $16, $17, $18, $19, $20::jsonb, NOW(), NOW()
+     )
      ON CONFLICT (rodeo_id)
      DO UPDATE SET
        rodeo_number = EXCLUDED.rodeo_number,
@@ -195,10 +204,13 @@ async function upsertRodeo(client, rodeo) {
        start_date = EXCLUDED.start_date,
        end_date = EXCLUDED.end_date,
        payout = EXCLUDED.payout,
-       venue_name = EXCLUDED.venue_name,
+       website_url = COALESCE(EXCLUDED.website_url, prca_rodeos.website_url),
+       venue_name = COALESCE(EXCLUDED.venue_name, prca_rodeos.venue_name),
        circuit_id = EXCLUDED.circuit_id,
        circuit_ids = EXCLUDED.circuit_ids,
        tour_ids = EXCLUDED.tour_ids,
+       daysheets = COALESCE(EXCLUDED.daysheets, prca_rodeos.daysheets),
+       has_daysheets = COALESCE(EXCLUDED.has_daysheets, prca_rodeos.has_daysheets),
        in_progress = EXCLUDED.in_progress,
        is_active = EXCLUDED.is_active,
        ap_results = EXCLUDED.ap_results,
@@ -215,14 +227,17 @@ async function upsertRodeo(client, rodeo) {
       normalizeDate(rodeo.StartDate),
       normalizeDate(rodeo.EndDate),
       normalizeOptionalNumber(rodeo.Payout),
+      cleanText(rodeo.WebsiteUrl),
       cleanText(rodeo.VenueName),
       normalizeOptionalInt(rodeo.CircuitId),
       normalizeIntArray(rodeo.CircuitIds),
       normalizeIntArray(rodeo.TourIds),
+      normalizeOptionalInt(rodeo.Daysheets),
+      normalizeBoolean(rodeo.HasDaysheets, false),
       normalizeBoolean(rodeo.InProgress, false),
       normalizeBoolean(rodeo.IsActive, true),
       cleanText(rodeo.ApResults),
-      JSON.stringify(rodeo),
+      JSON.stringify(sanitizeRodeoPayload(rodeo)),
     ]
   );
 }
