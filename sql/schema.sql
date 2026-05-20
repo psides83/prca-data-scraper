@@ -188,7 +188,6 @@ CREATE TABLE IF NOT EXISTS prca_contestants (
   is_active BOOLEAN,
   show_inactive_bio_override BOOLEAN,
   hide_active_bio_override BOOLEAN,
-  source_payload JSONB,
   image_original_key TEXT,
   image_original_url TEXT,
   image_315_key TEXT,
@@ -221,7 +220,6 @@ ALTER TABLE prca_contestants
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN,
   ADD COLUMN IF NOT EXISTS show_inactive_bio_override BOOLEAN,
   ADD COLUMN IF NOT EXISTS hide_active_bio_override BOOLEAN,
-  ADD COLUMN IF NOT EXISTS source_payload JSONB,
   ADD COLUMN IF NOT EXISTS image_original_key TEXT,
   ADD COLUMN IF NOT EXISTS image_original_url TEXT,
   ADD COLUMN IF NOT EXISTS image_315_key TEXT,
@@ -253,7 +251,6 @@ CREATE TABLE IF NOT EXISTS prca_standings (
   place INTEGER,
   earnings NUMERIC(12,2),
   points NUMERIC(12,2),
-  source_payload JSONB,
   scrape_request_id BIGINT REFERENCES prca_scrape_requests(id),
   synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE NULLS NOT DISTINCT (season_year, standing_type, event_abbrev, contestant_id, tour_id, circuit_id)
@@ -300,7 +297,6 @@ CREATE TABLE IF NOT EXISTS prca_rodeos (
   in_progress BOOLEAN,
   is_active BOOLEAN,
   ap_results TEXT,
-  source_payload JSONB,
   synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -336,7 +332,6 @@ CREATE TABLE IF NOT EXISTS prca_rodeo_results (
   left_stock_score NUMERIC(12,4),
   right_stock_score NUMERIC(12,4),
   ride_timestamp TIMESTAMPTZ,
-  source_payload JSONB,
   synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -369,7 +364,6 @@ BEGIN
     UPDATE prca_contestants c
     SET biography_text = COALESCE(c.biography_text, b.biography_text),
         video_highlights = COALESCE(c.video_highlights, b.video_highlights),
-        source_payload = COALESCE(c.source_payload, b.source_payload),
         bio_synced_at = COALESCE(c.bio_synced_at, b.synced_at),
         bio_sync_status = COALESCE(c.bio_sync_status, b.sync_status),
         bio_sync_error = COALESCE(c.bio_sync_error, b.sync_error),
@@ -393,7 +387,6 @@ CREATE TABLE IF NOT EXISTS prca_athlete_career (
   nfr_qualified BOOLEAN,
   riding_statistics JSONB,
   timed_statistics JSONB,
-  source_payload JSONB,
   source_standing_type TEXT,
   circuit_id INTEGER,
   world_rank INTEGER,
@@ -422,7 +415,6 @@ CREATE TABLE IF NOT EXISTS prca_athlete_rankings (
   rank_number INTEGER,
   tour_id INTEGER,
   circuit_id INTEGER,
-  source_payload JSONB,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE NULLS NOT DISTINCT (contestant_id, season_year, rank_type, event_name, tour_id, circuit_id)
 );
@@ -436,13 +428,33 @@ CREATE TABLE IF NOT EXISTS prca_athlete_earnings (
   event_type TEXT NOT NULL,
   earning_index INTEGER NOT NULL,
   earnings NUMERIC(14,2),
-  source_payload JSONB,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (contestant_id, season_year, event_type, earning_index)
 );
 
 CREATE INDEX IF NOT EXISTS idx_prca_athlete_earnings_lookup
   ON prca_athlete_earnings (contestant_id, season_year);
+
+ALTER TABLE prca_contestants
+  DROP COLUMN IF EXISTS source_payload;
+
+ALTER TABLE prca_standings
+  DROP COLUMN IF EXISTS source_payload;
+
+ALTER TABLE prca_rodeos
+  DROP COLUMN IF EXISTS source_payload;
+
+ALTER TABLE prca_rodeo_results
+  DROP COLUMN IF EXISTS source_payload;
+
+ALTER TABLE prca_athlete_career
+  DROP COLUMN IF EXISTS source_payload;
+
+ALTER TABLE prca_athlete_rankings
+  DROP COLUMN IF EXISTS source_payload;
+
+ALTER TABLE prca_athlete_earnings
+  DROP COLUMN IF EXISTS source_payload;
 
 ALTER TABLE prca_standings
   ADD COLUMN IF NOT EXISTS id TEXT;

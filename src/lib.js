@@ -322,13 +322,13 @@ export async function upsertContestantProfiles(client, rows) {
          contestant_id, first_name, last_name, nick_name, hometown, sidearm_photo_url,
          featured, birth_date, age, total_earnings, year_earnings, world_titles,
          nfr_qualifications, date_joined, event_types, biography_text, video_highlights,
-         is_active, show_inactive_bio_override, hide_active_bio_override, source_payload, updated_at
+         is_active, show_inactive_bio_override, hide_active_bio_override, updated_at
        )
        VALUES (
          $1, $2, $3, $4, $5, $6,
          $7, $8, $9, $10, $11, $12,
          $13, $14, $15, $16, $17,
-         $18, $19, $20, $21::jsonb, NOW()
+         $18, $19, $20, NOW()
        )
        ON CONFLICT (contestant_id)
        DO UPDATE SET
@@ -347,7 +347,6 @@ export async function upsertContestantProfiles(client, rows) {
          is_active = EXCLUDED.is_active,
          show_inactive_bio_override = EXCLUDED.show_inactive_bio_override,
          hide_active_bio_override = EXCLUDED.hide_active_bio_override,
-         source_payload = EXCLUDED.source_payload,
          updated_at = NOW()`,
       [
         row.ContestantId,
@@ -370,7 +369,6 @@ export async function upsertContestantProfiles(client, rows) {
         normalizeBoolean(row.IsActive, true),
         normalizeBoolean(row.ShowInactiveBioOverride, false),
         normalizeBoolean(row.HideActiveBioOverride, false),
-        JSON.stringify(row),
       ]
     );
     count += 1;
@@ -426,9 +424,9 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
     await client.query(
       `INSERT INTO prca_standings (
          id, standing_id, season_year, standing_type, event_abbrev, contestant_id, tour_id, circuit_id,
-         place, earnings, points, source_payload, scrape_request_id, synced_at
+         place, earnings, points, scrape_request_id, synced_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
        ON CONFLICT (season_year, standing_type, event_abbrev, contestant_id, tour_id, circuit_id)
        DO UPDATE SET
          id = EXCLUDED.id,
@@ -436,7 +434,6 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
          place = EXCLUDED.place,
          earnings = EXCLUDED.earnings,
          points = EXCLUDED.points,
-         source_payload = EXCLUDED.source_payload,
          scrape_request_id = EXCLUDED.scrape_request_id,
          synced_at = NOW()`,
       [
@@ -458,7 +455,6 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
         row.Place,
         row.Earnings,
         row.Points,
-        JSON.stringify(row),
         scrapeRequestId,
       ]
     );

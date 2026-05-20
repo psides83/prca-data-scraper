@@ -126,7 +126,6 @@ async function updateContestantBioSuccess(client, bio) {
     `UPDATE prca_contestants
      SET biography_text = $2,
          video_highlights = $3,
-         source_payload = $4::jsonb,
          bio_synced_at = NOW(),
          bio_sync_status = 'success',
          bio_sync_error = NULL,
@@ -136,7 +135,6 @@ async function updateContestantBioSuccess(client, bio) {
       bio.ContestantId,
       cleanText(bio.BiographyText),
       cleanText(bio.VideoHighlights),
-      JSON.stringify(bio),
     ]
   );
 }

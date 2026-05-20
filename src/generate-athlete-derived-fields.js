@@ -49,7 +49,7 @@ async function rebuildGeneratedTables(client, asOf) {
      )
      INSERT INTO prca_athlete_career (
        contestant_id, season_year, event_type, earnings, world_titles, nfr_qualified,
-       riding_statistics, timed_statistics, source_payload, source_standing_type,
+       riding_statistics, timed_statistics, source_standing_type,
        circuit_id, world_rank, won_world_title, source_standings_id, updated_at
      )
      SELECT
@@ -61,15 +61,6 @@ async function rebuildGeneratedTables(client, asOf) {
        nfr_qualified,
        NULL::jsonb,
        NULL::jsonb,
-       jsonb_build_object(
-         'generated', true,
-         'source', 'prca_standings',
-         'sourceStandingType', source_standing_type,
-         'sourceStandingsId', source_standings_id,
-         'circuitId', circuit_id,
-         'worldRank', world_rank,
-         'wonWorldTitle', won_world_title
-       ),
        source_standing_type,
        circuit_id,
        world_rank,
@@ -81,7 +72,7 @@ async function rebuildGeneratedTables(client, asOf) {
 
   const earnings = await client.query(
     `INSERT INTO prca_athlete_earnings (
-       contestant_id, season_year, event_type, earning_index, earnings, source_payload, updated_at
+       contestant_id, season_year, event_type, earning_index, earnings, updated_at
      )
      SELECT
        contestant_id,
@@ -89,13 +80,6 @@ async function rebuildGeneratedTables(client, asOf) {
        event_type,
        0,
        earnings,
-       jsonb_build_object(
-         'generated', true,
-         'source', 'prca_athlete_career',
-         'sourceStandingType', source_standing_type,
-         'sourceStandingsId', source_standings_id,
-         'circuitId', circuit_id
-       ),
        NOW()
      FROM prca_athlete_career`
   );
@@ -103,7 +87,7 @@ async function rebuildGeneratedTables(client, asOf) {
   const rankings = await client.query(
     `INSERT INTO prca_athlete_rankings (
        contestant_id, season_year, rank_type, event_name, rank_label, rank_number,
-       tour_id, circuit_id, source_payload, updated_at
+       tour_id, circuit_id, updated_at
      )
      SELECT
        s.contestant_id,
@@ -114,15 +98,6 @@ async function rebuildGeneratedTables(client, asOf) {
        s.place,
        NULL,
        NULL,
-       jsonb_build_object(
-         'generated', true,
-         'source', 'prca_standings',
-         'sourceStandingType', 'world',
-         'sourceStandingsId', s.id,
-         'eventAbbrev', s.event_abbrev,
-         'earnings', s.earnings,
-         'points', s.points
-       ),
        NOW()
      FROM prca_standings s
      JOIN prca_event_types et

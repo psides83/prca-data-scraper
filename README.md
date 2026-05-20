@@ -97,7 +97,7 @@ The API returns repeated contestant and standing fields in every standings row. 
 - `prca_event_types`: event lookup from `/eventtypes`, keyed by `event_type_id` with unique `event_abbrev`, plus `is_standings_event` and `is_results_event` scrape flags.
 - `prca_circuits`: circuit lookup from `/circuits`, keyed by `circuit_id`.
 - `prca_tours`: tour lookup from `/tours`, keyed by `tour_id`.
-- `prca_contestants`: one row per `ContestantId`, including static profile/bio fields, generated totals, latest bio sync status, normalized relative photo path, and the latest profile/bio source JSONB payload.
+- `prca_contestants`: one row per `ContestantId`, including static profile/bio fields, generated totals, latest bio sync status, and normalized relative photo path.
 - `prca_standings`: one row per contestant/ranking context, keyed by season, type, event, contestant, tour, and circuit.
 - `prca_app_athlete_rankings`: current-season world-standings view for app rankings.
 - `prca_rodeos`: one row per rodeo discovered from schedule/results.
@@ -109,7 +109,7 @@ The API returns repeated contestant and standing fields in every standings row. 
 - `prca_scrape_runs`: one row per script execution, such as a full backfill or daily sync.
 - `prca_scrape_requests`: one row per API request, including standings and athlete bio calls.
 
-`prca_standings.source_payload` keeps the original API object as JSONB for auditing, while the main columns are cleaned and query-ready.
+Raw API payloads are not stored on row tables. Scrape run/request metadata is retained in `prca_scrape_runs` and `prca_scrape_requests` for operational tracing without duplicating each record.
 
 `athletes:sync-bios` supports these target scopes:
 
@@ -142,7 +142,7 @@ The generator rebuilds these tables from standings each time it runs:
 - `prca_athlete_earnings`: generated from `prca_athlete_career`.
 - `prca_athlete_rankings`: generated from `prca_standings` where `standing_type = 'world'`.
 
-The bio endpoint does not write those three tables. Bio scrape data for the source endpoint's `Career`, `Rankings`, and `Earnings` arrays remains available only in `prca_contestants.source_payload`.
+The bio endpoint does not write those three tables. Career, ranking, and earnings app-facing rows are generated from standings instead.
 
 `prca_standings.id` is the deterministic primary key for a ranking row. It uses:
 
@@ -181,10 +181,10 @@ If the API returns tied places within the same standings response, the contestan
 - Contestant images are stored in R2 at `contestants/{contestant_id}/original.{ext}` and `contestants/{contestant_id}/315.{ext}`.
 - The source image URLs are `https://d1kfpvgfupbmyo.cloudfront.net${sidearm_photo_url}` and `https://d1kfpvgfupbmyo.cloudfront.net${sidearm_photo_url}?width=315&height=315`.
 - Image sync fetches original and 315px versions together for one contestant, then waits according to `IMAGE_SYNC_DELAY_MS` and `IMAGE_SYNC_JITTER_MS` before moving to the next contestant.
-- Athlete bio sync stores only static profile/bio fields on `prca_contestants` and stores source bio JSON in `prca_contestants.source_payload`; it does not store the bio endpoint's large historical `Results` or `Averages` arrays in separate tables.
+- Athlete bio sync stores only static profile/bio fields on `prca_contestants`; it does not store the bio endpoint's large historical `Results` or `Averages` arrays in separate tables.
 - Results discovery calls `/schedule?type=results` over a configurable date window, then calls `/rodeo?id={RodeoId}` for each returned rodeo.
 - Schedule sync calls `/schedule?type=schedule` over the configured date window and upserts the returned rodeos into `prca_rodeos`.
-- Schedule source JSON stored in `prca_rodeos.source_payload` omits `HideGridView`, `AnniversaryNumber`, `ApResults`, and `JoinedYear`.
+- Schedule sync stores normalized rodeo fields only, not the raw schedule JSON payload.
 - Results discovery queues every contestant found in detailed rodeo result data for a bio refresh and marks that contestant `derived_is_active = true` with reason `recent_result`.
 - The rodeo parser handles both detailed `Events` result maps and lighter `Winners` arrays.
 - Circuit codes are extracted from names like `Texas (L)` into `prca_circuits.code`.

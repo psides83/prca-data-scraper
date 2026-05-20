@@ -13,7 +13,6 @@ import {
 } from "./lib.js";
 
 const DEFAULT_API_BASE = "https://d1kfpvgfupbmyo.cloudfront.net/services/pro_rodeo.ashx";
-const OMITTED_SOURCE_KEYS = new Set(["HideGridView", "AnniversaryNumber", "ApResults", "JoinedYear"]);
 
 function buildDefaultDateWindow() {
   const year = normalizeOptionalInt(process.env.SCHEDULE_YEAR) ?? new Date().getUTCFullYear();
@@ -56,10 +55,6 @@ function buildScheduleUrl({ apiBase, start, end, pageSize, index }) {
 function normalizeIntArray(value) {
   if (!Array.isArray(value)) return [];
   return value.map((item) => normalizeOptionalInt(item)).filter((item) => item !== null);
-}
-
-function sanitizeSchedulePayload(row) {
-  return Object.fromEntries(Object.entries(row).filter(([key]) => !OMITTED_SOURCE_KEYS.has(key)));
 }
 
 async function fetchScheduleRows(client, { apiBase, scrapeRunId, start, end, pageSize }) {
@@ -112,12 +107,12 @@ async function upsertScheduleRow(client, rodeo) {
     `INSERT INTO prca_rodeos (
        rodeo_id, rodeo_number, season_year, name, city, state_abbrv, start_date, end_date,
        payout, website_url, venue_name, circuit_id, circuit_ids, tour_ids, daysheets,
-       has_daysheets, in_progress, is_active, ap_results, source_payload, synced_at, updated_at
+       has_daysheets, in_progress, is_active, ap_results, synced_at, updated_at
      )
      VALUES (
        $1, $2, $3, $4, $5, $6, $7, $8,
        $9, $10, $11, $12, $13, $14, $15,
-       $16, $17, $18, NULL, $19::jsonb, NOW(), NOW()
+       $16, $17, $18, NULL, NOW(), NOW()
      )
      ON CONFLICT (rodeo_id)
      DO UPDATE SET
@@ -138,7 +133,6 @@ async function upsertScheduleRow(client, rodeo) {
        has_daysheets = EXCLUDED.has_daysheets,
        in_progress = EXCLUDED.in_progress,
        is_active = EXCLUDED.is_active,
-       source_payload = EXCLUDED.source_payload,
        synced_at = NOW(),
        updated_at = NOW()`,
     [
@@ -160,7 +154,6 @@ async function upsertScheduleRow(client, rodeo) {
       normalizeBoolean(rodeo.HasDaysheets, false),
       normalizeBoolean(rodeo.InProgress, false),
       normalizeBoolean(rodeo.IsActive, true),
-      JSON.stringify(sanitizeSchedulePayload(rodeo)),
     ]
   );
 }
@@ -195,7 +188,7 @@ async function main() {
     runId = await createScrapeRun(client, {
       runType: "schedule_sync",
       targetCount: 1,
-      metadata: { apiBase, start, end, pageSize, omittedSourceKeys: [...OMITTED_SOURCE_KEYS] },
+      metadata: { apiBase, start, end, pageSize },
     });
 
     const rows = await fetchScheduleRows(client, { apiBase, scrapeRunId: runId, start, end, pageSize });

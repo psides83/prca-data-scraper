@@ -18,7 +18,6 @@ import {
 } from "./lib.js";
 
 const DEFAULT_API_BASE = "https://d1kfpvgfupbmyo.cloudfront.net/services/pro_rodeo.ashx";
-const OMITTED_RODEO_SOURCE_KEYS = new Set(["HideGridView", "AnniversaryNumber", "ApResults", "JoinedYear"]);
 
 function formatScheduleDate(date) {
   return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
@@ -95,10 +94,6 @@ function printResultsProgress({ index, total, rodeoId, successCount, failureCoun
 function normalizeIntArray(value) {
   if (!Array.isArray(value)) return [];
   return value.map((item) => normalizeOptionalInt(item)).filter((item) => item !== null);
-}
-
-function sanitizeRodeoPayload(row) {
-  return Object.fromEntries(Object.entries(row).filter(([key]) => !OMITTED_RODEO_SOURCE_KEYS.has(key)));
 }
 
 function extractRodeo(raw) {
@@ -187,12 +182,12 @@ async function upsertRodeo(client, rodeo) {
     `INSERT INTO prca_rodeos (
        rodeo_id, rodeo_number, season_year, name, city, state_abbrv, start_date, end_date,
        payout, website_url, venue_name, circuit_id, circuit_ids, tour_ids, daysheets,
-       has_daysheets, in_progress, is_active, ap_results, source_payload, synced_at, updated_at
+       has_daysheets, in_progress, is_active, ap_results, synced_at, updated_at
      )
      VALUES (
        $1, $2, $3, $4, $5, $6, $7, $8,
        $9, $10, $11, $12, $13, $14, $15,
-       $16, $17, $18, $19, $20::jsonb, NOW(), NOW()
+       $16, $17, $18, $19, NOW(), NOW()
      )
      ON CONFLICT (rodeo_id)
      DO UPDATE SET
@@ -214,7 +209,6 @@ async function upsertRodeo(client, rodeo) {
        in_progress = EXCLUDED.in_progress,
        is_active = EXCLUDED.is_active,
        ap_results = EXCLUDED.ap_results,
-       source_payload = EXCLUDED.source_payload,
        synced_at = NOW(),
        updated_at = NOW()`,
     [
@@ -237,7 +231,6 @@ async function upsertRodeo(client, rodeo) {
       normalizeBoolean(rodeo.InProgress, false),
       normalizeBoolean(rodeo.IsActive, true),
       cleanText(rodeo.ApResults),
-      JSON.stringify(sanitizeRodeoPayload(rodeo)),
     ]
   );
 }
@@ -251,12 +244,12 @@ async function upsertRodeoResult(client, { rodeoId, result, contestant }) {
        result_key, rodeo_id, contestant_id, event_type, go_round, go_round_label,
        place, payoff, score, time, team_id, stock_id, stock_name, contractor_name,
        number_scores, left_stock_score, right_stock_score, ride_timestamp,
-       source_payload, synced_at, updated_at
+       synced_at, updated_at
      )
      VALUES (
        $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10, $11, $12, $13, $14,
-       $15, $16, $17, $18, $19::jsonb, NOW(), NOW()
+       $15, $16, $17, $18, NOW(), NOW()
      )
      ON CONFLICT (result_key)
      DO UPDATE SET
@@ -269,7 +262,6 @@ async function upsertRodeoResult(client, { rodeoId, result, contestant }) {
        number_scores = EXCLUDED.number_scores,
        left_stock_score = EXCLUDED.left_stock_score,
        right_stock_score = EXCLUDED.right_stock_score,
-       source_payload = EXCLUDED.source_payload,
        synced_at = NOW(),
        updated_at = NOW()`,
     [
@@ -291,7 +283,6 @@ async function upsertRodeoResult(client, { rodeoId, result, contestant }) {
       normalizeOptionalNumber(result.LeftStockScore),
       normalizeOptionalNumber(result.RightStockScore),
       result.RideTimestamp || null,
-      JSON.stringify({ ...result, Contestant: contestant }),
     ]
   );
 
