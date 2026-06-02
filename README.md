@@ -22,26 +22,12 @@ Ingest standings data from the ProRodeo API into Neon/Postgres with normalized t
 ## GitHub Actions
 
 Daily standings scraping is configured in `.github/workflows/prca-standings-daily.yml`.
-Weekly contestant profile syncing is configured in `.github/workflows/prca-contestants-weekly.yml`.
-Daily recent-results discovery and queued athlete bio refresh is configured in `.github/workflows/prca-results-bios-daily.yml`.
-Twice-weekly rodeo schedule syncing is configured in `.github/workflows/prca-schedules-twice-weekly.yml`.
 
 Required repository secret:
 
 - `DATABASE_URL`: Neon Postgres connection string
-- `R2_ACCOUNT_ID`: Cloudflare account id
-- `R2_ACCESS_KEY_ID`: R2 access key id
-- `R2_SECRET_ACCESS_KEY`: R2 secret access key
-- `R2_BUCKET`: R2 bucket name
-- `R2_PUBLIC_BASE_URL`: public bucket/custom-domain base URL
 
-The standings workflow runs every day at `11:00 UTC` and can also be started manually from the GitHub Actions tab. It initializes the schema, runs `standings:daily`, retries unresolved failed targets, then regenerates standings-derived athlete fields.
-
-The contestants workflow runs every Monday at `12:00 UTC` and can also be started manually. It initializes the schema, runs `contestants:sync`, then runs `contestants:sync-images`.
-
-The recent-results workflow runs every day at `11:30 UTC` and can also be started manually. It initializes the schema, runs `results:daily`, then runs `athletes:sync-bios` with `ATHLETE_BIO_SCOPE=active_or_queued`.
-
-The schedule workflow runs every Monday and Thursday at `12:15 UTC` and can also be started manually. By default it syncs the 2026 schedule window from `1/1/2026` through `9/30/2026`, matching the PRCA schedule URL. Override `SCHEDULE_YEAR`, `SCHEDULE_START_DATE`, or `SCHEDULE_END_DATE` for a different season/window.
+The standings workflow runs every day at `11:00 UTC` and can also be started manually from the GitHub Actions tab. It initializes the schema, runs `standings:daily`, then retries unresolved failed standings targets.
 
 ## Backfill scope
 

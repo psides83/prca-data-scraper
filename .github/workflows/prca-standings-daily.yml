@@ -59,6 +59,3 @@ jobs:
       - name: Retry unresolved failed targets
         if: ${{ always() && (github.event_name == 'schedule' || inputs.retry_failed == 'true') }}
         run: npm run standings:retry-failed
-
-      - name: Generate athlete standings-derived fields
-        run: npm run athletes:generate-derived
