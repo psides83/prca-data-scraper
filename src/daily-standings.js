@@ -86,7 +86,7 @@ async function main() {
         console.error(err.message || err);
         printProgress({ label: "daily", index, total: targets.length, target: progressTarget, completed, failed, rowsLoaded, startedAt });
       }
-      await sleep(withJitter(basePauseMs, jitterMs));
+      if (index < targets.length - 1) await sleep(withJitter(basePauseMs, jitterMs));
     }
 
     await finishScrapeRun(client, {

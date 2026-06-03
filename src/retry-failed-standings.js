@@ -166,7 +166,7 @@ async function main() {
       }
 
       printProgress({ label: "retry", index, total: targets.length, target, completed, failed, rowsLoaded, startedAt });
-      await sleep(withJitter(basePauseMs, jitterMs));
+      if (index < targets.length - 1) await sleep(withJitter(basePauseMs, jitterMs));
     }
 
     await finishScrapeRun(client, {

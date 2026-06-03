@@ -377,7 +377,6 @@ export async function upsertContestantProfiles(client, rows) {
 }
 
 export async function upsertStandings(client, rows, mediaBase, scrapeRequestId = null, keyContext = {}) {
-  let count = 0;
   const placeCounts = rows.reduce((counts, row) => {
     const key = String(row.Place);
     counts.set(key, (counts.get(key) || 0) + 1);
@@ -385,11 +384,36 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
   }, new Map());
   const targetTourId = keyContext.standingType === "tour" ? keyContext.scopeId : null;
   const targetCircuitId = keyContext.standingType === "circuit" ? keyContext.scopeId : null;
+  const contestantsById = new Map();
 
   for (const row of rows) {
+    const contestantId = normalizeOptionalInt(row.ContestantId);
+    if (contestantId === null) continue;
+    contestantsById.set(contestantId, {
+      contestant_id: contestantId,
+      first_name: cleanText(row.FirstName),
+      last_name: cleanText(row.LastName),
+      nick_name: cleanText(row.NickName),
+      hometown: cleanText(row.Hometown),
+      sidearm_photo_url: normalizePhotoUrl(row.SidearmPhotoUrl, mediaBase),
+    });
+  }
+
+  if (contestantsById.size > 0) {
     await client.query(
-      `INSERT INTO prca_contestants (contestant_id, first_name, last_name, nick_name, hometown, sidearm_photo_url, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      `INSERT INTO prca_contestants (
+         contestant_id, first_name, last_name, nick_name, hometown, sidearm_photo_url, updated_at
+       )
+       SELECT
+         contestant_id, first_name, last_name, nick_name, hometown, sidearm_photo_url, NOW()
+       FROM jsonb_to_recordset($1::jsonb) AS x(
+         contestant_id INTEGER,
+         first_name TEXT,
+         last_name TEXT,
+         nick_name TEXT,
+         hometown TEXT,
+         sidearm_photo_url TEXT
+       )
        ON CONFLICT (contestant_id)
        DO UPDATE SET
          first_name = EXCLUDED.first_name,
@@ -398,14 +422,7 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
          hometown = EXCLUDED.hometown,
          sidearm_photo_url = COALESCE(EXCLUDED.sidearm_photo_url, prca_contestants.sidearm_photo_url),
          updated_at = NOW()`,
-      [
-        row.ContestantId,
-        cleanText(row.FirstName),
-        cleanText(row.LastName),
-        cleanText(row.NickName),
-        cleanText(row.Hometown),
-        normalizePhotoUrl(row.SidearmPhotoUrl, mediaBase),
-      ]
+      [JSON.stringify([...contestantsById.values()])]
     );
   }
 
@@ -419,14 +436,54 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
     [keyContext.seasonYear, keyContext.standingType, keyContext.eventAbbrev, targetTourId, targetCircuitId]
   );
 
-  for (const row of rows) {
+  const standingRows = rows.map((row) => {
     const placeIsTied = placeCounts.get(String(row.Place)) > 1;
+    return {
+      id: buildStandingsKey({
+        standingType: keyContext.standingType,
+        eventTypeId: keyContext.eventTypeId,
+        scopeId: keyContext.scopeId,
+        seasonYear: keyContext.seasonYear,
+        place: row.Place,
+        tieBreaker: placeIsTied ? row.ContestantId : null,
+      }),
+      standing_id: normalizeOptionalInt(row.StandingId),
+      season_year: keyContext.seasonYear,
+      standing_type: keyContext.standingType,
+      event_abbrev: keyContext.eventAbbrev,
+      contestant_id: normalizeOptionalInt(row.ContestantId),
+      tour_id: targetTourId,
+      circuit_id: targetCircuitId,
+      place: normalizeOptionalInt(row.Place),
+      earnings: normalizeOptionalNumber(row.Earnings),
+      points: normalizeOptionalNumber(row.Points),
+      scrape_request_id: scrapeRequestId,
+    };
+  });
+
+  if (standingRows.length > 0) {
     await client.query(
       `INSERT INTO prca_standings (
          id, standing_id, season_year, standing_type, event_abbrev, contestant_id, tour_id, circuit_id,
          place, earnings, points, scrape_request_id, synced_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+       SELECT
+         id, standing_id, season_year, standing_type, event_abbrev, contestant_id, tour_id, circuit_id,
+         place, earnings, points, scrape_request_id, NOW()
+       FROM jsonb_to_recordset($1::jsonb) AS x(
+         id TEXT,
+         standing_id INTEGER,
+         season_year INTEGER,
+         standing_type TEXT,
+         event_abbrev TEXT,
+         contestant_id INTEGER,
+         tour_id INTEGER,
+         circuit_id INTEGER,
+         place INTEGER,
+         earnings NUMERIC,
+         points NUMERIC,
+         scrape_request_id BIGINT
+       )
        ON CONFLICT (season_year, standing_type, event_abbrev, contestant_id, tour_id, circuit_id)
        DO UPDATE SET
          id = EXCLUDED.id,
@@ -436,31 +493,10 @@ export async function upsertStandings(client, rows, mediaBase, scrapeRequestId =
          points = EXCLUDED.points,
          scrape_request_id = EXCLUDED.scrape_request_id,
          synced_at = NOW()`,
-      [
-        buildStandingsKey({
-          standingType: keyContext.standingType,
-          eventTypeId: keyContext.eventTypeId,
-          scopeId: keyContext.scopeId,
-          seasonYear: keyContext.seasonYear,
-          place: row.Place,
-          tieBreaker: placeIsTied ? row.ContestantId : null,
-        }),
-        row.StandingId,
-        keyContext.seasonYear,
-        keyContext.standingType,
-        keyContext.eventAbbrev,
-        row.ContestantId,
-        targetTourId,
-        targetCircuitId,
-        row.Place,
-        row.Earnings,
-        row.Points,
-        scrapeRequestId,
-      ]
+      [JSON.stringify(standingRows)]
     );
-    count += 1;
   }
-  return count;
+  return standingRows.length;
 }
 
 export async function fetchLookups(apiBase) {
